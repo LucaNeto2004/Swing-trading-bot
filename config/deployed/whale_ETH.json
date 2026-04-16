@@ -1,0 +1,21 @@
+{
+  "symbol": "ETH",
+  "config": "long_only_none_swing_pivot_RSI35/65_SL2.5_TP1_3.0x0.5_TR2.5_hold288_1hN",
+  "trend_filter": "none",
+  "entry_type": "swing_pivot",
+  "rsi_oversold": 35,
+  "rsi_overbought": 65,
+  "sl_atr": 2.5,
+  "tp1_atr": 3.0,
+  "tp1_pct": 0.5,
+  "trail_atr": 2.5,
+  "max_hold_bars": 288,
+  "direction": "long_only",
+  "use_1h_filter": false,
+  "strategy": "whale_swing",
+  "backtest_pf": 1.43,
+  "backtest_pnl": 6554.01,
+  "backtest_trades": 175,
+  "backtest_wr": 73.1,
+  "backtest_run_date": "2026-04-16"
+}

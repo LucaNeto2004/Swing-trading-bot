@@ -1,0 +1,21 @@
+{
+  "symbol": "FARTCOIN",
+  "config": "long_only_none_swing_pivot_RSI35/65_SL2.5_TP1_3.0x0.5_noTR_hold864_1hN",
+  "trend_filter": "none",
+  "entry_type": "swing_pivot",
+  "rsi_oversold": 35,
+  "rsi_overbought": 65,
+  "sl_atr": 2.5,
+  "tp1_atr": 3.0,
+  "tp1_pct": 0.5,
+  "trail_atr": 0.0,
+  "max_hold_bars": 864,
+  "direction": "long_only",
+  "use_1h_filter": false,
+  "strategy": "whale_swing",
+  "backtest_pf": 4.2,
+  "backtest_pnl": 23967.29,
+  "backtest_trades": 49,
+  "backtest_wr": 46.9,
+  "backtest_run_date": "2026-04-16"
+}

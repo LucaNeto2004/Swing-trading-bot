@@ -1,0 +1,21 @@
+{
+  "symbol": "BIO",
+  "config": "both_none_ema_bounce_RSI35/65_SL2.5_TP1_2.0x0.5_noTR_hold864_1hN",
+  "trend_filter": "none",
+  "entry_type": "ema_bounce",
+  "rsi_oversold": 35,
+  "rsi_overbought": 65,
+  "sl_atr": 2.5,
+  "tp1_atr": 2.0,
+  "tp1_pct": 0.5,
+  "trail_atr": 0.0,
+  "max_hold_bars": 864,
+  "direction": "both",
+  "use_1h_filter": false,
+  "strategy": "whale_swing",
+  "backtest_pf": 13.39,
+  "backtest_pnl": 39355.73,
+  "backtest_trades": 64,
+  "backtest_wr": 48.4,
+  "backtest_run_date": "2026-04-16"
+}

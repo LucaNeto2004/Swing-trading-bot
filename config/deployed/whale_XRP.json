@@ -1,0 +1,21 @@
+{
+  "symbol": "XRP",
+  "config": "both_none_bb_touch_RSI35/65_SL1.5_TP1_3.0x0.5_noTR_hold288_1hN",
+  "trend_filter": "none",
+  "entry_type": "bb_touch",
+  "rsi_oversold": 35,
+  "rsi_overbought": 65,
+  "sl_atr": 1.5,
+  "tp1_atr": 3.0,
+  "tp1_pct": 0.5,
+  "trail_atr": 0.0,
+  "max_hold_bars": 288,
+  "direction": "both",
+  "use_1h_filter": false,
+  "strategy": "whale_swing",
+  "backtest_pf": 4.4,
+  "backtest_pnl": 9269.99,
+  "backtest_trades": 67,
+  "backtest_wr": 50.7,
+  "backtest_run_date": "2026-04-16"
+}
