@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Swing Trading Command Center</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:#0b0b14; --panel:#131320; --border:#2a2a40;
+      --text:#e2e8f0; --sub:#8892a8; --muted:#4a5065;
+      --accent:#6ee7b7; --amber:#fbbf24; --blue:#60a5fa;
+      --pink:#f472b6; --red:#f87171; --green:#4ade80;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', -apple-system, sans-serif;
+      font-size: 13px;
+      padding: 8px;
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      gap: 8px;
+      min-height: 100vh;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 12px 16px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+    header h1 { font-size: 15px; font-weight: 700; letter-spacing: 0.3px; }
+    header .tag {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      color: var(--sub);
+      padding: 3px 10px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+    }
+    header .tag.mode-paper { background: #2a2410; border-color: #6a4a10; color: var(--amber); }
+    header .tag.mode-live { background: #3a1010; border-color: #8a1a1a; color: var(--red); }
+    header .right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+    header .status-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 8px var(--green);
+    }
+    .status-dot.halt { background: var(--red); box-shadow: 0 0 8px var(--red); }
+
+    .kpis {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+    }
+    .kpi {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 16px;
+    }
+    .kpi .label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      color: var(--sub);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .kpi .value {
+      font-size: 22px;
+      font-weight: 600;
+      margin-top: 4px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .kpi .sub {
+      font-size: 11px;
+      color: var(--sub);
+      margin-top: 2px;
+    }
+    .pos { color: var(--green); }
+    .neg { color: var(--red); }
+
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1.6fr 1fr 1fr;
+      gap: 8px;
+      min-height: 0;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-height: 0;
+    }
+    .panel .bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      font-size: 11px;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--sub);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .panel .bar .count {
+      margin-left: auto;
+      padding: 2px 8px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      color: var(--text);
+    }
+    .panel .body {
+      padding: 8px;
+      overflow-y: auto;
+      flex: 1;
+    }
+    .empty {
+      padding: 24px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+    th {
+      text-align: left;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      color: var(--sub);
+      text-transform: uppercase;
+      padding: 6px 8px;
+      border-bottom: 1px solid var(--border);
+      font-weight: 500;
+    }
+    td {
+      padding: 7px 8px;
+      border-bottom: 1px solid var(--border);
+      font-family: 'JetBrains Mono', monospace;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,0.02); }
+    .side-long { color: var(--green); font-weight: 600; }
+    .side-short { color: var(--red); font-weight: 600; }
+    .badge {
+      display: inline-block;
+      padding: 1px 7px;
+      font-size: 9.5px;
+      font-family: 'JetBrains Mono', monospace;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      color: var(--sub);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .badge.hit { background: #0d2a1a; border-color: #1a5a35; color: var(--green); }
+    .badge.trail { background: #2a1a0d; border-color: #5a3a1a; color: var(--amber); }
+    .progress {
+      width: 100%; height: 4px; background: var(--bg);
+      border-radius: 2px; margin-top: 2px; overflow: hidden;
+    }
+    .progress .fill { height: 100%; background: var(--blue); }
+
+    .sym-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 6px;
+    }
+    .sym-card {
+      padding: 8px 10px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+    }
+    .sym-card.active { border-color: var(--accent); background: #0d2a1f; }
+    .sym-card .sym {
+      font-weight: 600;
+      font-size: 12px;
+      color: var(--text);
+      margin-bottom: 2px;
+    }
+    .sym-card .price { color: var(--sub); font-size: 11px; }
+    .sym-card .meta { margin-top: 4px; color: var(--muted); font-size: 9.5px; }
+    .sym-card .dir-long { color: var(--green); }
+    .sym-card .dir-short { color: var(--red); }
+    .sym-card .dir-both { color: var(--blue); }
+    .sym-card .pf { color: var(--amber); font-weight: 600; }
+
+    .vault-note {
+      padding: 6px 10px;
+      border-bottom: 1px solid var(--border);
+      font-size: 11.5px;
+      display: flex;
+      gap: 8px;
+      align-items: baseline;
+    }
+    .vault-note:last-child { border-bottom: none; }
+    .vault-note .ts { font-family: 'JetBrains Mono', monospace; color: var(--muted); font-size: 10px; min-width: 50px; }
+    .vault-note .title { flex: 1; color: var(--text); }
+    .footer {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      color: var(--muted);
+      text-align: right;
+      padding: 4px 8px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🐋 SWING TRADING COMMAND CENTER</h1>
+    <span class="tag" id="mode-tag">—</span>
+    <span class="tag" id="network-tag">—</span>
+    <span class="tag">eff lev <span id="eff-lev">—</span>×</span>
+    <span class="tag">max <span id="max-conc">—</span> concurrent</span>
+    <div class="right">
+      <span class="status-dot" id="status-dot"></span>
+      <span class="tag" id="status-text">live</span>
+      <span class="tag" id="refresh-tag">—</span>
+    </div>
+  </header>
+
+  <div class="kpis">
+    <div class="kpi">
+      <div class="label">Balance</div>
+      <div class="value" id="kpi-balance">$0</div>
+      <div class="sub">start: $<span id="kpi-start">0</span></div>
+    </div>
+    <div class="kpi">
+      <div class="label">Daily P&L</div>
+      <div class="value" id="kpi-daily">$0</div>
+      <div class="sub"><span id="kpi-daily-pct">0%</span> of start</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Open Positions</div>
+      <div class="value" id="kpi-open">0 / 2</div>
+      <div class="sub">max concurrent</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Peak Balance</div>
+      <div class="value" id="kpi-peak">$0</div>
+      <div class="sub">drawdown: <span id="kpi-dd">0%</span></div>
+    </div>
+    <div class="kpi">
+      <div class="label">Consec Losses</div>
+      <div class="value" id="kpi-losses">0</div>
+      <div class="sub" id="kpi-halt-state">ok</div>
+    </div>
+  </div>
+
+  <div class="main-grid">
+    <!-- Open positions -->
+    <section class="panel">
+      <div class="bar">
+        Open Positions
+        <span class="count" id="pos-count">0</span>
+      </div>
+      <div class="body" id="positions-body">
+        <div class="empty">No open positions.</div>
+      </div>
+    </section>
+
+    <!-- Trade history -->
+    <section class="panel">
+      <div class="bar">
+        Recent Trades
+        <span class="count" id="trades-count">0</span>
+      </div>
+      <div class="body" id="trades-body">
+        <div class="empty">No trades yet.</div>
+      </div>
+    </section>
+
+    <!-- Vault + stats -->
+    <section class="panel">
+      <div class="bar">Vault Notes</div>
+      <div class="body" id="vault-body">
+        <div class="empty">No vault notes yet.</div>
+      </div>
+    </section>
+  </div>
+
+  <section class="panel">
+    <div class="bar">
+      Symbol Watchlist
+      <span class="count" id="sym-count">0</span>
+    </div>
+    <div class="body">
+      <div class="sym-grid" id="sym-grid"></div>
+    </div>
+  </section>
+
+  <div class="footer" id="footer">—</div>
+
+  <script>
+    const $ = id => document.getElementById(id);
+    const fmtMoney = v => {
+      const n = Number(v || 0);
+      const sign = n >= 0 ? "" : "-";
+      return sign + "$" + Math.abs(n).toFixed(2);
+    };
+    const fmtPrice = v => {
+      const n = Number(v || 0);
+      if (n === 0) return "—";
+      return n < 1 ? n.toFixed(6) : n.toFixed(4);
+    };
+    const classPN = v => (Number(v) >= 0 ? "pos" : "neg");
+
+    async function refresh() {
+      try {
+        const r = await fetch("/api/state");
+        const s = await r.json();
+
+        // Header
+        const modeTag = $("mode-tag");
+        modeTag.textContent = s.mode;
+        modeTag.className = "tag " + (s.mode === "LIVE" ? "mode-live" : "mode-paper");
+        $("network-tag").textContent = s.network;
+        $("eff-lev").textContent = Number(s.effective_leverage).toFixed(1);
+        $("max-conc").textContent = s.max_concurrent;
+
+        const halted = s.kill_switch || s.account_dd_halt || s.consecutive_loss_halt;
+        $("status-dot").className = "status-dot" + (halted ? " halt" : "");
+        $("status-text").textContent = halted ? "HALTED" : "live";
+
+        if (s.last_refresh) {
+          const ts = new Date(s.last_refresh);
+          $("refresh-tag").textContent = ts.toLocaleTimeString();
+        }
+
+        // KPIs
+        $("kpi-balance").textContent = fmtMoney(s.balance);
+        $("kpi-balance").className = "value " + classPN(s.balance - s.starting_balance);
+        $("kpi-start").textContent = Number(s.starting_balance).toFixed(0);
+
+        $("kpi-daily").textContent = fmtMoney(s.daily_pnl);
+        $("kpi-daily").className = "value " + classPN(s.daily_pnl);
+        const dailyPct = s.starting_balance ? (s.daily_pnl / s.starting_balance * 100) : 0;
+        $("kpi-daily-pct").textContent = dailyPct.toFixed(2) + "%";
+
+        $("kpi-open").textContent = s.open_count + " / " + s.max_concurrent;
+
+        $("kpi-peak").textContent = fmtMoney(s.account_peak_balance);
+        const dd = s.account_peak_balance > 0
+          ? ((s.account_peak_balance - s.balance) / s.account_peak_balance * 100)
+          : 0;
+        $("kpi-dd").textContent = dd.toFixed(2) + "%";
+
+        $("kpi-losses").textContent = s.consecutive_losses + " / 5";
+        $("kpi-halt-state").textContent = halted
+          ? (s.kill_switch ? "KILL SWITCH" : s.account_dd_halt ? "DD HALT" : "LOSS HALT")
+          : "ok";
+        $("kpi-halt-state").style.color = halted ? "var(--red)" : "var(--muted)";
+
+        // Positions
+        $("pos-count").textContent = s.positions.length;
+        const pb = $("positions-body");
+        if (s.positions.length === 0) {
+          pb.innerHTML = '<div class="empty">No open positions.</div>';
+        } else {
+          let html = '<table><thead><tr>' +
+            '<th>Sym</th><th>Side</th><th>Entry</th><th>Live</th><th>SL</th>' +
+            '<th>TP1</th><th>P&L</th><th>Bars</th><th>Status</th></tr></thead><tbody>';
+          for (const p of s.positions) {
+            const sideClass = p.side === "long" ? "side-long" : "side-short";
+            const unrlClass = classPN(p.unrealized);
+            const status = [];
+            if (p.tp1_hit) status.push('<span class="badge hit">tp1 hit</span>');
+            if (p.trail_active) status.push('<span class="badge trail">trailing</span>');
+            const pct = Math.min(100, p.bars_held / p.max_hold_bars * 100);
+            html += `<tr>
+              <td><b>${p.symbol}</b></td>
+              <td class="${sideClass}">${p.side.toUpperCase()}</td>
+              <td>${fmtPrice(p.entry)}</td>
+              <td>${fmtPrice(p.live)}</td>
+              <td>${fmtPrice(p.sl)}</td>
+              <td>${p.tp1 ? fmtPrice(p.tp1) : '—'}</td>
+              <td class="${unrlClass}">${fmtMoney(p.unrealized)}</td>
+              <td>${p.bars_held}/${p.max_hold_bars}
+                <div class="progress"><div class="fill" style="width:${pct}%"></div></div>
+              </td>
+              <td>${status.join(' ') || '<span class="badge">active</span>'}</td>
+            </tr>`;
+          }
+          html += '</tbody></table>';
+          pb.innerHTML = html;
+        }
+
+        // Trades — pulled from vault notes (the bot writes a trade note on entry + exit)
+        const tb = $("trades-body");
+        const trades = (s.vault_recent || []).slice(0, 20);
+        $("trades-count").textContent = trades.length;
+        if (trades.length === 0) {
+          tb.innerHTML = '<div class="empty">No trades yet.</div>';
+        } else {
+          let html = '<table><thead><tr><th>When</th><th>Note</th></tr></thead><tbody>';
+          for (const t of trades) {
+            const name = t.name || t.filename || '';
+            const when = t.date || t.mtime || '';
+            html += `<tr><td style="color:var(--muted)">${when}</td><td>${name}</td></tr>`;
+          }
+          html += '</tbody></table>';
+          tb.innerHTML = html;
+        }
+
+        // Vault body = most recent notes
+        const vb = $("vault-body");
+        if ((s.vault_recent || []).length === 0) {
+          vb.innerHTML = '<div class="empty">No vault notes yet.</div>';
+        } else {
+          vb.innerHTML = s.vault_recent.slice(0, 12).map(n =>
+            `<div class="vault-note">
+              <span class="ts">${(n.date || '').slice(-5)}</span>
+              <span class="title">${n.name || n.filename || ''}</span>
+            </div>`
+          ).join('');
+        }
+
+        // Symbols
+        const sg = $("sym-grid");
+        $("sym-count").textContent = s.symbols.length;
+        sg.innerHTML = s.symbols.map(sym => {
+          const dirClass = sym.direction === "long_only" ? "dir-long"
+            : sym.direction === "short_only" ? "dir-short" : "dir-both";
+          const active = sym.in_position ? " active" : "";
+          const pf = sym.backtest_pf ? `PF ${Number(sym.backtest_pf).toFixed(1)}` : '';
+          return `<div class="sym-card${active}">
+            <div class="sym">${sym.symbol}</div>
+            <div class="price">${fmtPrice(sym.price)}</div>
+            <div class="meta">
+              <span class="${dirClass}">${(sym.direction || '').replace('_only','').toUpperCase()}</span>
+              · ${sym.entry_type || ''}
+            </div>
+            <div class="meta"><span class="pf">${pf}</span></div>
+          </div>`;
+        }).join('');
+
+        $("footer").textContent = `refresh every 15s · ${s.symbols.length} symbols watched · paper state @ data/paper_state.json`;
+      } catch (e) {
+        console.error("refresh failed", e);
+      }
+    }
+
+    refresh();
+    setInterval(refresh, 5000);
+  </script>
+</body>
+</html>

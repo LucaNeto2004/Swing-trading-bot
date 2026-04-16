@@ -4,3 +4,4 @@ requests>=2.31
 python-dotenv>=1.0
 hyperliquid-python-sdk>=0.7
 eth-account>=0.10
+flask>=2.3
