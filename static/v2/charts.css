@@ -1,0 +1,119 @@
+/* Charts-page specific styles — single-line bar */
+.charts-bar {
+  display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
+  padding: 6px 14px; border-bottom: 1px solid var(--hair);
+  gap: 14px; background: var(--panel-2);
+}
+.charts-bar-l { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.charts-bar-c { display: flex; align-items: center; gap: 8px; justify-self: center; }
+.charts-bar-r { display: flex; align-items: center; gap: 8px; justify-self: end; font-size: 10.5px; }
+.charts-title {
+  font-family: var(--sans); font-size: 13px; font-weight: 600; margin: 0;
+  letter-spacing: 0.02em; text-transform: uppercase; color: var(--text);
+}
+.charts-sub { font-size: 10.5px; }
+.small-dot { font-size: 10px; letter-spacing: 0.04em; }
+.chip-pos { color: var(--pos); border-color: rgba(74,222,128,0.4); background: rgba(74,222,128,0.06); }
+
+.charts-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: var(--hair);
+  padding: 1px;
+  border-bottom: 1px solid var(--hair);
+}
+
+.chart-tile {
+  background: var(--panel);
+  display: flex; flex-direction: column;
+  min-height: 340px;
+}
+.tile-head {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 6px 10px; border-bottom: 1px solid var(--hair);
+  font-size: 10.5px;
+  background: var(--panel-2);
+}
+.tile-head-l { display: flex; align-items: baseline; gap: 8px; }
+.tile-head-r { display: flex; align-items: center; gap: 8px; color: var(--dim); font-size: 10px; }
+.tile-sym { font-size: 13px; font-weight: 600; letter-spacing: 0.04em; color: var(--text); }
+.tile-status { font-size: 9px; letter-spacing: 0.14em; font-weight: 600; padding: 1px 5px; border: 1px solid; }
+/* Forming candle — tween size changes and add a pulsing glow */
+.cnd-last rect, .cnd-last line { transition: y 0.15s linear, height 0.15s linear, y1 0.15s linear, y2 0.15s linear; }
+.cnd-last rect { filter: drop-shadow(0 0 2px currentColor); }
+@keyframes cndPulse { 0%,100% { opacity: 0.75; } 50% { opacity: 1; } }
+.cnd-last rect { animation: cndPulse 1.4s ease-in-out infinite; }
+
+.tile-status-live { color: var(--pos); border-color: rgba(74,222,128,0.4); background: rgba(74,222,128,0.08); }
+.tile-status-stale { color: var(--warn); border-color: rgba(251,191,36,0.4); background: rgba(251,191,36,0.06); }
+.tile-status-loading { color: var(--dim); border-color: var(--hair-2); }
+.tile-status-open { color: var(--pos); border-color: rgba(74,222,128,0.4); background: rgba(74,222,128,0.08); }
+.tile-status-idle { color: var(--dim); border-color: var(--hair-2); }
+
+.tile-loading { padding: 80px 10px; text-align: center; font-size: 11px; }
+
+@keyframes flashUp { 0% { color: var(--pos); transform: translateY(-1px); } 100% { color: var(--text); transform: none; } }
+@keyframes flashDn { 0% { color: var(--neg); transform: translateY(1px); } 100% { color: var(--text); transform: none; } }
+.tile-px { transition: color 0.3s; display: inline-block; }
+.tile-px.flash-up { animation: flashUp 0.5s ease-out; }
+.tile-px.flash-dn { animation: flashDn 0.5s ease-out; }
+.tile-px { color: var(--text); font-variant-numeric: tabular-nums; }
+.tile-rsi { color: var(--text); font-variant-numeric: tabular-nums; }
+.tile-sig { letter-spacing: 0.02em; font-size: 10px; }
+.tile-sig.pos { color: var(--pos); }
+.tile-sig.neg { color: var(--neg); }
+.tile-side { font-size: 10px; letter-spacing: 0.04em; font-weight: 600; padding: 1px 5px; border: 1px solid; }
+.tile-side.pos { color: var(--pos); border-color: rgba(74,222,128,0.4); }
+.tile-side.neg { color: var(--neg); border-color: rgba(248,113,113,0.4); }
+.tile-tv {
+  color: var(--dim); font-size: 11px; width: 16px; height: 16px; display: inline-flex;
+  align-items: center; justify-content: center; border: 1px solid var(--hair);
+}
+
+.tile-svg { display: block; width: 100%; height: auto; }
+.tile-axis-t { font-size: 8.5px; fill: var(--dim); font-family: var(--mono); }
+.tile-axis-p { font-size: 8.5px; fill: #a78bfa; font-family: var(--mono); font-weight: 600; }
+.tile-tag-t { font-size: 8.5px; fill: var(--text); font-family: var(--mono); font-weight: 600; }
+.tile-tag-tb { font-size: 8.5px; fill: #07090b; font-family: var(--mono); font-weight: 700; }
+
+/* Footer legend */
+.charts-foot {
+  display: flex; align-items: center; gap: 14px;
+  padding: 8px 14px; font-size: 10.5px;
+  background: var(--panel-2); border-top: 1px solid var(--hair);
+}
+.lg { display: inline-flex; align-items: center; gap: 5px; color: var(--dim); }
+.sw { width: 12px; height: 3px; display: inline-block; }
+.sw-line { width: 14px; height: 1px; display: inline-block; border-top: 1px dashed; }
+
+/* Layout variants */
+body.layout-4x2 .charts-grid { grid-template-columns: repeat(4, 1fr); }
+body.layout-2x3 .charts-grid { grid-template-columns: repeat(2, 1fr); }
+body.layout-3x2 .charts-grid { grid-template-columns: repeat(3, 1fr); }
+
+/* Fullscreen overlay */
+.chart-fs {
+  position: fixed; inset: 0; background: rgba(7,9,11,0.92);
+  z-index: 1000; display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+}
+.chart-fs-inner {
+  width: 100%; max-width: 1600px; background: var(--panel);
+  border: 1px solid var(--hair); display: flex; flex-direction: column;
+}
+.chart-fs-bar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 10px; border-bottom: 1px solid var(--hair);
+  background: var(--panel-2); font-size: 10.5px;
+}
+.chart-tile-big { min-height: 82vh; display: flex; flex-direction: column; }
+.chart-tile-big .tile-svg { flex: 1; width: 100%; height: auto; min-height: 0; display: block; }
+.chart-tile-big .tile-head { flex: 0 0 auto; }
+.tile-tv { background: transparent; cursor: pointer; font-family: inherit; color: var(--dim); }
+.tile-tv:hover { color: var(--text); border-color: var(--text); }
+
+/* Add charts link to main dash topbar */
+.nav-link { color: var(--dim); font-size: 10px; letter-spacing: 0.08em; padding: 3px 8px; border: 1px solid var(--hair-2); text-decoration: none; }
+.nav-link.on { color: var(--pos); border-color: rgba(74,222,128,0.4); background: rgba(74,222,128,0.06); }
+.nav-link:hover { color: var(--text); border-color: var(--text); }

@@ -2,310 +2,838 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Swing Trading Command Center</title>
+  <title>Swing Trading · Command Center</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
   <style>
     :root {
-      --bg:#0b0b14; --panel:#131320; --border:#2a2a40;
-      --text:#e2e8f0; --sub:#8892a8; --muted:#4a5065;
-      --accent:#6ee7b7; --amber:#fbbf24; --blue:#60a5fa;
-      --pink:#f472b6; --red:#f87171; --green:#4ade80;
+      --bg:#000000;
+      --panel:#040605;
+      --panel-2:#070a08;
+      --border:#161c19;
+      --border-soft:#0c110e;
+      --text:#e7efe9;
+      --sub:#7a8480;
+      --muted:#4a544e;
+      --mint:#34d399;
+      --mint-dim:#16a34a;
+      --green:#34d399;
+      --red:#ef4444;
+      --red-dim:#ea580c;
+      --amber:#fbbf24;
+      --blue:#60a5fa;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { height: 100%; }
     body {
-      background: var(--bg);
+      background:
+        radial-gradient(ellipse at 30% -20%, rgba(52,211,153,0.10), transparent 55%),
+        radial-gradient(ellipse at 80% -30%, rgba(52,211,153,0.06), transparent 45%),
+        var(--bg);
       color: var(--text);
       font-family: 'DM Sans', -apple-system, sans-serif;
-      font-size: 13px;
-      padding: 8px;
-      display: grid;
-      grid-template-rows: auto auto 1fr;
-      gap: 8px;
+      font-size: 11.5px;
+      padding: 10px 16px 16px;
       min-height: 100vh;
     }
-    header {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      padding: 12px 16px;
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-    }
-    header h1 { font-size: 15px; font-weight: 700; letter-spacing: 0.3px; }
-    header .tag {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 10px;
-      color: var(--sub);
-      padding: 3px 10px;
-      border: 1px solid var(--border);
-      border-radius: 999px;
-    }
-    header .tag.mode-paper { background: #2a2410; border-color: #6a4a10; color: var(--amber); }
-    header .tag.mode-live { background: #3a1010; border-color: #8a1a1a; color: var(--red); }
-    header .right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
-    header .status-dot {
-      width: 8px; height: 8px; border-radius: 50%;
-      background: var(--green);
-      box-shadow: 0 0 8px var(--green);
-    }
-    .status-dot.halt { background: var(--red); box-shadow: 0 0 8px var(--red); }
+    a { color: inherit; text-decoration: none; }
 
-    .kpis {
-      display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      gap: 8px;
-    }
-    .kpi {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 12px 16px;
-    }
-    .kpi .label {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 10px;
-      color: var(--sub);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-    .kpi .value {
-      font-size: 22px;
-      font-weight: 600;
-      margin-top: 4px;
-      font-family: 'JetBrains Mono', monospace;
-    }
-    .kpi .sub {
-      font-size: 11px;
-      color: var(--sub);
-      margin-top: 2px;
-    }
-    .pos { color: var(--green); }
-    .neg { color: var(--red); }
-
-    .main-grid {
-      display: grid;
-      grid-template-columns: 1.6fr 1fr 1fr;
-      gap: 8px;
-      min-height: 0;
-    }
-    .panel {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      display: flex;
-      flex-direction: column;
+    /* ── Price ticker ─────────────────────────── */
+    .price-ticker {
+      position: relative;
       overflow: hidden;
-      min-height: 0;
-    }
-    .panel .bar {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 10px 14px;
+      height: 34px;
       border-bottom: 1px solid var(--border);
-      font-size: 11px;
+      background: rgba(7,10,8,0.7);
+      margin: -10px -16px 10px;
       font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      /* Soft edge fade on left/right so items entering/leaving don't pop. */
+      -webkit-mask-image: linear-gradient(to right,
+        transparent 0, #000 40px, #000 calc(100% - 40px), transparent 100%);
+              mask-image: linear-gradient(to right,
+        transparent 0, #000 40px, #000 calc(100% - 40px), transparent 100%);
+    }
+    .price-ticker-track {
+      display: flex; align-items: center;
+      width: max-content; height: 100%;
+      /* Two identical halves laid end to end; translating by -50% swaps them
+         invisibly so the loop is seamless — no gap between the last asset
+         of one cycle and the first of the next. */
+      animation: ticker-marquee 90s linear infinite;
+    }
+    .price-ticker-track:hover { animation-play-state: paused; }
+    @keyframes ticker-marquee {
+      from { transform: translateX(0); }
+      to   { transform: translateX(-50%); }
+    }
+    .tk-item {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 0 18px;
+      border-right: 1px solid var(--border-soft);
       color: var(--sub);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
+      white-space: nowrap;
     }
-    .panel .bar .count {
-      margin-left: auto;
-      padding: 2px 8px;
-      background: var(--bg);
+    .tk-item .sym { color: var(--text); font-weight: 600; letter-spacing: 0.3px; }
+    .tk-item .px { color: var(--text); font-variant-numeric: tabular-nums; }
+    .tk-item .ch { font-size: 10px; font-variant-numeric: tabular-nums; }
+    .tk-item .ch.pos { color: var(--mint); }
+    .tk-item .ch.neg { color: var(--red); }
+    .tk-item .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--sub); }
+    .tk-item .dot.pos { background: var(--mint); box-shadow: 0 0 6px var(--mint); }
+    .tk-item .dot.neg { background: var(--red);  box-shadow: 0 0 6px var(--red); }
+
+    /* ── Header ─────────────────────────────── */
+    .topbar {
+      display: flex; align-items: center; gap: 12px;
+      padding: 2px 0 10px;
+    }
+    .topbar .brand { font-size: 16px; font-weight: 700; letter-spacing: 0.2px; }
+    .topbar .profile {
+      padding: 6px 12px; border: 1px solid var(--border); border-radius: 999px;
+      font-size: 12px; color: var(--sub);
+      background: rgba(52,211,153,0.04);
+    }
+    .topbar .profile b { color: var(--mint); }
+    .topbar .right { margin-left: auto; display: flex; gap: 10px; }
+    .topbar .pill {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 7px 14px; border: 1px solid var(--border); border-radius: 999px;
+      font-size: 12px; color: var(--text);
+      background: rgba(255,255,255,0.02);
+      font-family: 'JetBrains Mono', monospace; letter-spacing: 0.2px;
+      transition: border-color 0.15s, background-color 0.15s;
+    }
+    .topbar .pill:hover { border-color: rgba(255,255,255,0.15); }
+    .topbar .pill.alert { color: var(--amber); }
+    .topbar .pill.live {
+      color: var(--mint); border-color: rgba(52,211,153,0.3);
+      background: rgba(52,211,153,0.06);
+    }
+    .topbar .pill.halted {
+      color: var(--red); border-color: rgba(239,68,68,0.3);
+      background: rgba(239,68,68,0.08);
+    }
+    .topbar .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; box-shadow: 0 0 6px currentColor; }
+
+    .meta-row {
+      display: flex; gap: 14px; align-items: center; color: var(--sub);
+      font-family: 'JetBrains Mono', monospace; font-size: 10px;
+      padding: 0 2px 8px;
+    }
+    .meta-row .wallet { opacity: 0.6; }
+    .meta-row .tag {
+      padding: 3px 10px; border: 1px solid var(--border); border-radius: 999px;
+    }
+    .meta-row .mode-paper { color: var(--amber); border-color: rgba(251,191,36,0.3); }
+    .meta-row .mode-live { color: var(--red); border-color: rgba(239,68,68,0.35); }
+
+    /* ── Top grid ───────────────────────────── */
+    .top-grid {
+      display: grid;
+      grid-template-columns: minmax(320px, 360px) minmax(0, 1fr);
+      grid-template-rows: 1fr;
+      align-items: stretch;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .top-grid > .card { min-height: 0; min-width: 0; }
+    @media (max-width: 900px) {
+      .top-grid { grid-template-columns: 1fr; }
+      .chart-wrap { min-height: 280px; }
+    }
+    .card {
+      background: var(--panel);
       border: 1px solid var(--border);
-      border-radius: 999px;
+      border-radius: 12px;
+      padding: 14px;
+    }
+    .card.tight { padding: 10px; }
+    .card.chart-card {
+      padding: 10px 12px 6px;
+      display: flex; flex-direction: column;
+    }
+
+    /* Continuous bar: the bar itself paints both colors with a single hard-stop
+       gradient, so there is zero seam/gap between Perps and Idle. The two
+       .seg elements are transparent hit-boxes that drive hover + tooltip. */
+    .alloc-bar {
+      display: flex; height: 28px; border-radius: 8px; overflow: hidden;
+      background:
+        linear-gradient(90deg,
+          rgba(96,165,250,0.55) 0%,
+          rgba(96,165,250,0.55) var(--perps-split, 0%),
+          rgba(251,191,36,0.45) var(--perps-split, 0%),
+          rgba(234,88,12,0.45) 100%);
+      border: 1px solid var(--border);
+      margin: 12px 0 2px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px; font-weight: 600;
+      user-select: none;
+      position: relative;
+    }
+    .alloc-bar .seg {
+      display: flex; align-items: center; justify-content: center;
+      height: 100%; transition: flex-basis 0.3s ease, background-color 0.15s ease;
+      letter-spacing: 0.3px;
+      overflow: hidden; white-space: nowrap;
+      min-width: 0;
+      cursor: pointer;
+      background: transparent;
+    }
+    .alloc-bar .seg.perps { color: #cfe3ff; }
+    .alloc-bar .seg.idle  { color: #ffe7b5; }
+    .alloc-bar .seg.empty { color: transparent; }
+    /* Hover highlight: overlay a translucent tint on the hit-box only,
+       so the bar underneath stays continuous. */
+    .alloc-bar .seg.perps:hover {
+      background: rgba(96,165,250,0.28);
+      color: #ffffff;
+    }
+    .alloc-bar .seg.idle:hover {
+      background: rgba(251,191,36,0.28);
+      color: #fff5dc;
+    }
+
+    /* Hover tooltip for alloc-bar segments */
+    .alloc-tip {
+      position: fixed; z-index: 1000;
+      display: none; pointer-events: none;
+      background: rgba(7,10,8,0.95);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-family: 'JetBrains Mono', monospace; font-size: 11px;
       color: var(--text);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+      min-width: 180px;
+      backdrop-filter: blur(6px);
     }
-    .panel .body {
-      padding: 8px;
-      overflow-y: auto;
-      flex: 1;
+    .alloc-tip.visible { display: block; }
+    .alloc-tip .row {
+      display: flex; align-items: center; gap: 8px;
+      line-height: 1.35;
     }
-    .empty {
-      padding: 24px;
+    .alloc-tip .sw { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .alloc-tip .sw.perps { background: #60a5fa; }
+    .alloc-tip .sw.idle { background: var(--amber); }
+    .alloc-tip .name { color: var(--sub); flex: 1; }
+    .alloc-tip .val { color: var(--text); font-weight: 700; }
+    .alloc-tip .pct { color: var(--sub); margin-left: 4px; font-size: 10px; margin-top: 2px; text-align: right; }
+
+    .equity-hero .value {
+      font-size: 30px; font-weight: 700; letter-spacing: 0.3px;
+      margin-top: 0;
+      font-family: 'JetBrains Mono', monospace;
+      line-height: 1.1;
+    }
+    .equity-hero .label {
+      font-size: 11px; color: var(--sub);
+      font-family: 'JetBrains Mono', monospace;
+      margin-top: 4px;
+      letter-spacing: 0.3px;
+    }
+    .equity-hero .sub-delta {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-family: 'JetBrains Mono', monospace; font-size: 10.5px;
+      color: var(--sub);
+      margin-left: 10px;
+    }
+    .equity-hero .sub-delta .pos { color: var(--mint); }
+    .equity-hero .sub-delta .neg { color: var(--red); }
+    .divider { height: 1px; background: var(--border); margin: 12px -14px; opacity: 0.7; }
+
+    .gauges { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .gauge {
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px 14px;
+      position: relative;
       text-align: center;
-      color: var(--muted);
-      font-size: 12px;
+      min-height: 116px;
+      display: flex; flex-direction: column; justify-content: center; align-items: center;
     }
+    .gauge .info {
+      position: absolute; top: 10px; right: 10px;
+      width: 16px; height: 16px; border-radius: 50%;
+      border: 1px solid var(--border); color: var(--muted);
+      font-size: 9px; display: flex; align-items: center; justify-content: center;
+      cursor: help;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .gauge svg { display: block; margin: 0 auto 4px; width: 150px; height: 88px; }
+    /* Leverage gauge — segmented dashed bands instead of a solid gradient arc. */
+    .gauge .arc-seg { fill: none; stroke-width: 10; stroke-linecap: round; }
+    .gauge .arc-track { stroke: rgba(255,255,255,0.05); stroke-width: 10; fill: none; stroke-linecap: round; }
+    .gauge .big {
+      font-size: 22px; font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+      letter-spacing: 0.3px; color: var(--mint);
+      margin-top: -2px;
+    }
+    .gauge .sub {
+      font-size: 10.5px; color: var(--sub);
+      margin-top: 6px; letter-spacing: 0.5px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .gauge.bias-gauge { justify-content: center; padding: 22px 14px; }
+    .gauge .hero-label {
+      font-size: 22px; font-weight: 800;
+      letter-spacing: 0.2px;
+      font-family: 'DM Sans', sans-serif;
+      display: inline-flex; align-items: center; gap: 4px;
+    }
+    .gauge .hero-label .trend {
+      font-size: 18px; font-weight: 700;
+      letter-spacing: -1px;
+    }
+    .gauge .hero-label.bearish { color: var(--red-dim); }
+    .gauge .hero-label.bullish { color: var(--mint); }
+    .gauge .hero-label.neutral { color: var(--sub); }
+
+    .period-tabs {
+      display: inline-flex; gap: 4px; padding: 3px;
+      background: rgba(16,22,26,0.6); border-radius: 999px;
+      margin-top: 14px;
+    }
+    .period-tabs .tab {
+      padding: 4px 12px; border-radius: 999px; font-size: 11px;
+      color: var(--sub); cursor: pointer;
+      font-family: 'JetBrains Mono', monospace;
+      user-select: none;
+    }
+    .period-tabs .tab:hover { color: var(--text); }
+    .period-tabs .tab.active {
+      background: rgba(52,211,153,0.10); color: var(--mint);
+    }
+
+    /* live-price flash */
+    @keyframes flashUp   { 0% { background: rgba(52,211,153,0.30); } 100% { background: transparent; } }
+    @keyframes flashDown { 0% { background: rgba(239,68,68,0.30); } 100% { background: transparent; } }
+    .flash-up   { animation: flashUp   0.8s ease-out; }
+    .flash-down { animation: flashDown 0.8s ease-out; }
+
+    .kv-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 7px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .kv-row:last-child { border-bottom: none; }
+    .kv-row .k { color: var(--sub); font-size: 11px; min-width: 100px; font-family: 'JetBrains Mono', monospace; }
+    .kv-row .v { margin-left: auto; font-size: 13px; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+    .kv-row .delta {
+      font-size: 10px; padding: 1px 6px; border-radius: 5px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .kv-row .delta.pos { color: var(--mint); background: rgba(52,211,153,0.08); }
+    .kv-row .delta.neg { color: var(--red); background: rgba(239,68,68,0.08); }
+    .kv-row .spark { width: 80px; height: 22px; opacity: 0.8; }
+
+    /* ── Right column: equity chart ────────── */
+    .chart-header {
+      display: flex; justify-content: space-between; align-items: flex-start;
+      padding: 6px 4px 10px;
+      gap: 16px; flex-wrap: wrap;
+    }
+    .chart-header .tabs-inline {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-family: 'JetBrains Mono', monospace; font-size: 12px;
+      color: var(--sub); flex-wrap: wrap;
+    }
+    .chart-header .tabs-inline .tab {
+      padding: 4px 10px; border-radius: 999px; cursor: pointer;
+      user-select: none; transition: background-color 0.15s, color 0.15s;
+    }
+    .chart-header .tabs-inline .tab:hover { color: var(--text); }
+    .chart-header .tabs-inline .tab.active {
+      background: rgba(52,211,153,0.12); color: var(--mint);
+    }
+    .chart-header .tabs-inline .sep {
+      opacity: 0.4; cursor: default; padding: 0 4px; user-select: none;
+    }
+    .chart-header .headline {
+      text-align: right; margin-left: auto;
+    }
+    .chart-header .headline .k {
+      color: var(--sub); font-size: 10.5px;
+      font-family: 'JetBrains Mono', monospace; letter-spacing: 0.3px;
+    }
+    .chart-header .headline .v {
+      color: var(--mint); font-size: 24px; font-weight: 700;
+      font-family: 'JetBrains Mono', monospace; margin-top: 2px;
+      line-height: 1.1;
+    }
+    .chart-header .headline .v.neg { color: var(--red); }
+    .chart-wrap {
+      position: relative; min-height: 260px; flex: 1 1 auto;
+      padding: 4px 2px 2px; width: 100%;
+    }
+    .chart-wrap canvas { max-width: 100%; }
+
+    /* ── Tabs ─────────────────────────────── */
+    .tabs {
+      display: flex; gap: 4px; align-items: center;
+      padding: 3px; border: 1px solid var(--border);
+      border-radius: 10px; background: rgba(11,15,13,0.6);
+      margin-bottom: 8px; overflow-x: auto;
+    }
+    .tabs .tab {
+      padding: 6px 12px; font-family: 'JetBrains Mono', monospace; font-size: 11px;
+      color: var(--sub); border-radius: 7px; cursor: pointer;
+      white-space: nowrap;
+      border: 1px solid transparent;
+      user-select: none;
+    }
+    .tabs .tab:hover { color: var(--text); }
+    .tabs .tab.active {
+      background: rgba(52,211,153,0.08);
+      color: var(--mint);
+      border-color: rgba(52,211,153,0.2);
+    }
+    .tab-count { opacity: 0.6; margin-left: 3px; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ── Tables ───────────────────────────── */
+    .table-card { padding: 0; overflow: hidden; }
+    .table-meta {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 9px 16px;
+      border-bottom: 1px solid var(--border);
+      font-family: 'JetBrains Mono', monospace; font-size: 10.5px;
+      color: var(--sub);
+      gap: 16px; flex-wrap: wrap;
+      letter-spacing: 0.2px;
+    }
+    .table-meta b { color: var(--text); font-weight: 600; }
+    .table-meta .right { display: flex; gap: 20px; margin-left: auto; }
+    .table-meta .right b { color: var(--mint); font-weight: 600; }
+    .table-meta .right .neg { color: var(--red); }
+    .table-meta .pos { color: var(--mint); }
+    .table-meta .neg { color: var(--red); }
+    .table-scroll { overflow-x: auto; max-height: 320px; overflow-y: auto; }
     table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
-    th {
+    thead th {
       text-align: left;
       font-family: 'JetBrains Mono', monospace;
-      font-size: 10px;
-      color: var(--sub);
-      text-transform: uppercase;
-      padding: 6px 8px;
-      border-bottom: 1px solid var(--border);
-      font-weight: 500;
-    }
-    td {
-      padding: 7px 8px;
-      border-bottom: 1px solid var(--border);
-      font-family: 'JetBrains Mono', monospace;
-    }
-    tr:last-child td { border-bottom: none; }
-    tr:hover td { background: rgba(255,255,255,0.02); }
-    .side-long { color: var(--green); font-weight: 600; }
-    .side-short { color: var(--red); font-weight: 600; }
-    .badge {
-      display: inline-block;
-      padding: 1px 7px;
       font-size: 9.5px;
-      font-family: 'JetBrains Mono', monospace;
-      border-radius: 4px;
-      border: 1px solid var(--border);
       color: var(--sub);
       text-transform: uppercase;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.4px;
+      padding: 8px 12px;
+      font-weight: 500;
+      position: sticky; top: 0;
+      background: rgba(11,15,13,0.95);
+      backdrop-filter: blur(6px);
+      border-bottom: 1px solid var(--border);
     }
-    .badge.hit { background: #0d2a1a; border-color: #1a5a35; color: var(--green); }
-    .badge.trail { background: #2a1a0d; border-color: #5a3a1a; color: var(--amber); }
-    .progress {
-      width: 100%; height: 4px; background: var(--bg);
-      border-radius: 2px; margin-top: 2px; overflow: hidden;
+    tbody td {
+      padding: 9px 12px;
+      border-bottom: 1px solid var(--border-soft);
+      font-family: 'JetBrains Mono', monospace;
     }
-    .progress .fill { height: 100%; background: var(--blue); }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover td { background: rgba(52,211,153,0.02); }
+    td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    th.num { text-align: right; }
+    .side-long { color: var(--mint); font-weight: 600; }
+    .side-short { color: var(--red); font-weight: 600; }
+    .pos { color: var(--mint); }
+    .neg { color: var(--red); }
+    .token-cell .sym { font-weight: 600; font-size: 13px; color: var(--text); }
+    .token-cell .sub { color: var(--sub); font-size: 10.5px; margin-top: 2px; }
+    .token-bar {
+      display: inline-block; width: 3px; height: 30px;
+      background: var(--mint); border-radius: 2px; margin-right: 10px;
+      vertical-align: middle;
+    }
+    .token-bar.short { background: var(--red); }
+    .empty { padding: 32px; text-align: center; color: var(--muted); font-size: 12px; }
+
+    .liq-bar {
+      width: 120px; height: 6px; background: rgba(255,255,255,0.06);
+      border-radius: 999px; overflow: hidden; display: inline-block;
+      vertical-align: middle; margin-right: 8px;
+    }
+    .liq-bar .fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--red), var(--amber), var(--mint));
+      border-radius: 999px;
+    }
+
+    .badge {
+      display: inline-block; padding: 2px 8px; font-size: 10px;
+      font-family: 'JetBrains Mono', monospace; border-radius: 5px;
+      border: 1px solid var(--border); color: var(--sub);
+      text-transform: uppercase; letter-spacing: 0.4px;
+    }
+    .badge.hit, .badge.tp, .badge.tp1 { background: rgba(52,211,153,0.08); border-color: rgba(52,211,153,0.3); color: var(--mint); }
+    .badge.tp2 { background: rgba(52,211,153,0.14); border-color: rgba(52,211,153,0.45); color: var(--mint); font-weight: 600; }
+    .badge.tp3 { background: rgba(52,211,153,0.22); border-color: rgba(52,211,153,0.6); color: var(--mint); font-weight: 700; }
+    .badge.trail { background: rgba(251,191,36,0.08); border-color: rgba(251,191,36,0.25); color: var(--amber); }
+    .badge.sl { background: rgba(239,68,68,0.08); border-color: rgba(239,68,68,0.3); color: var(--red); }
+    .badge.hold { background: rgba(96,165,250,0.08); border-color: rgba(96,165,250,0.25); color: var(--blue); }
 
     .sym-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-      gap: 6px;
+      grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+      gap: 10px;
+      padding: 16px 22px;
     }
     .sym-card {
-      padding: 8px 10px;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 10px;
+      padding: 12px 14px; background: rgba(16,22,26,0.4);
+      border: 1px solid var(--border); border-radius: 10px;
+      font-family: 'JetBrains Mono', monospace; font-size: 11px;
     }
-    .sym-card.active { border-color: var(--accent); background: #0d2a1f; }
-    .sym-card .sym {
-      font-weight: 600;
-      font-size: 12px;
-      color: var(--text);
-      margin-bottom: 2px;
-    }
-    .sym-card .price { color: var(--sub); font-size: 11px; }
-    .sym-card .meta { margin-top: 4px; color: var(--muted); font-size: 9.5px; }
-    .sym-card .dir-long { color: var(--green); }
+    .sym-card.active { border-color: rgba(52,211,153,0.4); background: rgba(52,211,153,0.05); }
+    .sym-card .sym { font-weight: 600; font-size: 13px; color: var(--text); margin-bottom: 3px; }
+    .sym-card .price { color: var(--sub); }
+    .sym-card .meta { margin-top: 6px; color: var(--muted); font-size: 10px; }
+    .sym-card .dir-long { color: var(--mint); }
     .sym-card .dir-short { color: var(--red); }
     .sym-card .dir-both { color: var(--blue); }
     .sym-card .pf { color: var(--amber); font-weight: 600; }
+    .sym-card .pwin { color: var(--blue); font-weight: 500; }
+    .sym-card .bos-row { font-family: 'JetBrains Mono', monospace; font-size: 10px; }
+    .sym-card .bos { margin-right: 2px; }
+    .sym-card .bos-up { color: var(--mint); }
+    .sym-card .bos-dn { color: var(--red); }
+    .sym-card .bos-dist { color: var(--muted); font-size: 9px; margin-left: 2px; }
+    .sym-card .bos-dist.pos { color: var(--mint); }
+    .sym-card .bos-dist.neg { color: var(--red); }
+    .sym-card .regime-row { font-family: 'JetBrains Mono', monospace; font-size: 10px; }
+    .sym-card .regime-up { color: var(--mint); font-weight: 600; }
+    .sym-card .regime-dn { color: var(--red); font-weight: 600; }
+    .sym-card .regime-range { color: var(--amber); font-weight: 600; }
+    .sym-card .regime-chop { color: var(--muted); }
+    .sym-card .regime-detail { color: var(--muted); font-size: 9px; margin-left: 6px; }
 
-    .vault-note {
-      padding: 6px 10px;
-      border-bottom: 1px solid var(--border);
-      font-size: 11.5px;
-      display: flex;
-      gap: 8px;
-      align-items: baseline;
-    }
-    .vault-note:last-child { border-bottom: none; }
-    .vault-note .ts { font-family: 'JetBrains Mono', monospace; color: var(--muted); font-size: 10px; min-width: 50px; }
-    .vault-note .title { flex: 1; color: var(--text); }
     .footer {
       font-family: 'JetBrains Mono', monospace;
-      font-size: 10px;
-      color: var(--muted);
-      text-align: right;
-      padding: 4px 8px;
+      font-size: 10.5px; color: var(--muted);
+      text-align: center; padding: 18px 0 4px;
     }
+
+    /* ── Daily P&L inline chart ───────────── */
+    .mini-row {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+      margin-bottom: 10px;
+    }
+    .mini-row .card { padding: 10px 12px 6px; }
+    .mini-row .card-head {
+      display: flex; justify-content: space-between; align-items: baseline;
+      padding-bottom: 6px;
+    }
+    .mini-row .card-head .t { font-size: 12px; font-weight: 600; }
+    .mini-row .card-head .s {
+      font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--sub);
+    }
+    .mini-chart { height: 130px; position: relative; }
+
+    .vault-note {
+      padding: 10px 22px; border-bottom: 1px solid var(--border-soft);
+      font-size: 12px; display: flex; gap: 10px; align-items: baseline;
+    }
+    .vault-note:last-child { border-bottom: none; }
+    .vault-note .ts { font-family: 'JetBrains Mono', monospace; color: var(--muted); font-size: 10.5px; min-width: 50px; }
+    .vault-note .title { flex: 1; color: var(--text); }
+
+    .vault-links {
+      display: flex; gap: 8px; flex-wrap: wrap; padding: 16px 22px;
+    }
+    .vault-links a {
+      padding: 8px 14px; border: 1px solid var(--border); border-radius: 8px;
+      color: var(--text); background: rgba(52,211,153,0.04);
+      font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600;
+    }
+    .vault-links a:hover { border-color: rgba(52,211,153,0.35); }
+
+    /* ── Price ticker ─────────────────────── */
+    .ticker {
+      border: 1px solid var(--border);
+      background: var(--panel);
+      border-radius: 10px;
+      overflow: hidden;
+      margin: 0 0 10px;
+      padding: 7px 0;
+      position: relative;
+    }
+    .ticker::before, .ticker::after {
+      content: ''; position: absolute; top: 0; width: 48px; height: 100%;
+      pointer-events: none; z-index: 2;
+    }
+    .ticker::before { left: 0;  background: linear-gradient(90deg, var(--panel), transparent); }
+    .ticker::after  { right: 0; background: linear-gradient(270deg, var(--panel), transparent); }
+    .ticker-track {
+      display: inline-flex; gap: 36px; white-space: nowrap;
+      padding-left: 100%;
+      animation: ticker-scroll 80s linear infinite;
+      font-family: 'JetBrains Mono', monospace; font-size: 11.5px;
+      will-change: transform;
+    }
+    .ticker:hover .ticker-track { animation-play-state: paused; }
+    .ticker-empty { padding: 0 16px; color: var(--muted); font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+    .ticker-item { color: var(--sub); }
+    .ticker-item b { color: var(--text); margin-right: 6px; font-weight: 600; letter-spacing: 0.3px; }
+    .ticker-item .px  { color: var(--text); font-variant-numeric: tabular-nums; }
+    .ticker-item .chg { margin-left: 6px; font-variant-numeric: tabular-nums; }
+    .ticker-item .chg.up { color: var(--mint); }
+    .ticker-item .chg.dn { color: var(--red); }
+    .ticker-item .chg.na { color: var(--muted); }
+    @keyframes ticker-scroll { to { transform: translateX(-100%); } }
   </style>
 </head>
 <body>
-  <header>
-    <h1>🐋 SWING TRADING COMMAND CENTER</h1>
+
+  <!-- Price ticker -->
+  <div class="ticker" id="ticker">
+    <div class="ticker-track" id="ticker-track">
+      <span class="ticker-empty">waiting for prices…</span>
+    </div>
+  </div>
+
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="brand">🐋 whale-swing</div>
+    <div class="profile">⏱ <b id="uptime">live</b></div>
+    <div class="right">
+      <a class="pill live" id="status-pill"><span class="dot"></span> <span id="status-text">live</span></a>
+      <a class="pill" href="obsidian://open?vault=Trading&file=Daily%20Log">📓 Daily Log</a>
+    </div>
+  </div>
+
+  <div class="meta-row">
+    <span class="wallet" id="cfg-label">paper · hyperliquid · whale swing</span>
     <span class="tag" id="mode-tag">—</span>
     <span class="tag" id="network-tag">—</span>
-    <span class="tag">eff lev <span id="eff-lev">—</span>×</span>
-    <span class="tag">max <span id="max-conc">—</span> concurrent</span>
-    <div class="right">
-      <span class="status-dot" id="status-dot"></span>
-      <span class="tag" id="status-text">live</span>
-      <span class="tag" id="refresh-tag">—</span>
-    </div>
-  </header>
-
-  <div class="kpis">
-    <div class="kpi">
-      <div class="label">Balance</div>
-      <div class="value" id="kpi-balance">$0</div>
-      <div class="sub">start: $<span id="kpi-start">0</span></div>
-    </div>
-    <div class="kpi">
-      <div class="label">Daily P&L</div>
-      <div class="value" id="kpi-daily">$0</div>
-      <div class="sub"><span id="kpi-daily-pct">0%</span> of start</div>
-    </div>
-    <div class="kpi">
-      <div class="label">Open Positions</div>
-      <div class="value" id="kpi-open">0 / 2</div>
-      <div class="sub">max concurrent</div>
-    </div>
-    <div class="kpi">
-      <div class="label">Peak Balance</div>
-      <div class="value" id="kpi-peak">$0</div>
-      <div class="sub">drawdown: <span id="kpi-dd">0%</span></div>
-    </div>
-    <div class="kpi">
-      <div class="label">Consec Losses</div>
-      <div class="value" id="kpi-losses">0</div>
-      <div class="sub" id="kpi-halt-state">ok</div>
-    </div>
+    <span>eff lev <span id="eff-lev">—</span>×</span>
+    <span>margin <span id="margin-pct">—</span>% × <span id="set-lev">—</span>×</span>
+    <span>refresh <span id="refresh-tag">—</span></span>
   </div>
 
-  <div class="main-grid">
-    <!-- Open positions -->
-    <section class="panel">
-      <div class="bar">
-        Open Positions
-        <span class="count" id="pos-count">0</span>
+  <!-- TOP GRID: Equity summary (left) + Equity curve (right) -->
+  <div class="top-grid">
+
+    <!-- LEFT: equity summary card -->
+    <div class="card equity-hero">
+      <div class="value" id="hero-balance">$0</div>
+      <div class="label">
+        Total Equity
+        <span class="sub-delta">
+          <span id="hero-delta">+0.00%</span>
+        </span>
       </div>
-      <div class="body" id="positions-body">
+      <span id="hero-start" hidden>0</span>
+
+      <div class="alloc-bar">
+        <div class="seg perps" id="alloc-perps" data-kind="perps" style="flex-basis:100%">
+          <span id="alloc-perps-label">Perps</span>
+        </div>
+        <div class="seg idle"  id="alloc-idle"  data-kind="vault" style="flex-basis:0%">
+          <span id="alloc-idle-label">Vault</span>
+        </div>
+      </div>
+
+      <div class="alloc-tip" id="alloc-tip">
+        <div class="row">
+          <span class="sw" id="alloc-tip-sw"></span>
+          <span class="name" id="alloc-tip-name">—</span>
+          <span class="val" id="alloc-tip-val">$0</span>
+        </div>
+        <div class="pct" id="alloc-tip-pct">0%</div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="gauges">
+        <div class="gauge bias-gauge">
+          <div class="info" title="Long vs short exposure across open positions">i</div>
+          <div class="hero-label neutral" id="biasLabel">Flat</div>
+          <div class="sub">Position Bias</div>
+        </div>
+        <div class="gauge">
+          <div class="info" title="Effective leverage = margin % × set leverage">i</div>
+          <svg viewBox="0 0 120 76" width="120" height="76" preserveAspectRatio="xMidYMid meet">
+            <defs>
+              <linearGradient id="levGrad" x1="0" x2="1" y1="0" y2="0">
+                <stop offset="0"    stop-color="#34d399"/>
+                <stop offset="0.5"  stop-color="#fbbf24"/>
+                <stop offset="1"    stop-color="#ef4444"/>
+              </linearGradient>
+            </defs>
+            <path d="M10 66 A50 50 0 0 1 110 66"
+              fill="none" stroke="url(#levGrad)" stroke-width="11" stroke-linecap="round"/>
+            <circle id="levDot" cx="10" cy="66" r="5.5" fill="#e7efe9" stroke="#000" stroke-width="2"/>
+          </svg>
+          <div class="big" id="levValue">—×</div>
+          <div class="sub">Leverage</div>
+        </div>
+      </div>
+
+      <div class="period-tabs" id="period-tabs">
+        <span class="tab" data-window="1">24h</span>
+        <span class="tab" data-window="7">7d</span>
+        <span class="tab" data-window="30">30d</span>
+        <span class="tab active" data-window="0">All</span>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="kv-row">
+        <span class="k">P&amp;L (session)</span>
+        <span class="delta" id="kv-delta-pct">+0.00%</span>
+        <svg class="spark" id="spark" viewBox="0 0 80 22" preserveAspectRatio="none">
+          <polyline id="sparkLine" fill="none" stroke="#34d399" stroke-width="1.5" points=""/>
+        </svg>
+        <span class="v pos" id="kv-pnl">$0</span>
+      </div>
+      <div class="kv-row">
+        <span class="k">Volume (session)</span>
+        <span class="v" id="kv-volume">$0</span>
+      </div>
+      <div class="kv-row">
+        <span class="k">Win Rate</span>
+        <span class="v" id="kv-winrate">—</span>
+      </div>
+      <div class="kv-row">
+        <span class="k">Profit Factor</span>
+        <span class="v" id="kv-pf">—</span>
+      </div>
+      <div class="kv-row">
+        <span class="k">Drawdown</span>
+        <span class="v" id="kv-dd">0%</span>
+      </div>
+    </div>
+
+    <!-- RIGHT: big equity chart -->
+    <div class="card chart-card">
+      <div class="chart-header">
+        <div class="tabs-inline" id="chart-mode-tabs">
+          <span class="tab" data-mode="equity">Equity</span>
+          <span class="tab active" data-mode="pnl">PNL</span>
+          <span class="sep">|</span>
+          <span class="tab" data-window="1">24h</span>
+          <span class="tab" data-window="7">7d</span>
+          <span class="tab" data-window="30">30d</span>
+          <span class="tab active" data-window="0">All</span>
+        </div>
+        <div class="headline">
+          <div class="k" id="headline-label">Combined PNL (All)</div>
+          <div class="v" id="headline-pnl">+$0</div>
+        </div>
+      </div>
+      <div class="chart-wrap"><canvas id="equityChart"></canvas></div>
+    </div>
+
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs" id="tab-strip">
+    <div class="tab active" data-tab="positions">Perps <span class="tab-count" id="tc-pos">(0)</span></div>
+    <div class="tab" data-tab="trades">Fills <span class="tab-count" id="tc-trades">(0)</span></div>
+    <div class="tab" data-tab="watchlist">Symbols <span class="tab-count" id="tc-syms">(0)</span></div>
+    <div class="tab" data-tab="attribution">Attribution</div>
+    <div class="tab" data-tab="vault">Vault</div>
+    <div class="tab" data-tab="risk">Risk</div>
+  </div>
+
+  <!-- Positions tab -->
+  <div class="tab-panel active" data-tab-panel="positions">
+    <div class="card table-card">
+      <div class="table-meta">
+        <div>
+          Long Value: <b class="pos" id="meta-long">$0</b> &middot;
+          Short Value: <b class="neg" id="meta-short">$0</b> &middot;
+          Total <b id="meta-total">$0</b>
+        </div>
+        <div class="right">
+          <div>Open: <b id="meta-open">0/0</b></div>
+          <div>Sum PNL: <b id="meta-sum-pnl">$0</b></div>
+        </div>
+      </div>
+      <div class="table-scroll" id="positions-body">
         <div class="empty">No open positions.</div>
       </div>
-    </section>
-
-    <!-- Trade history -->
-    <section class="panel">
-      <div class="bar">
-        Recent Trades
-        <span class="count" id="trades-count">0</span>
-      </div>
-      <div class="body" id="trades-body">
-        <div class="empty">No trades yet.</div>
-      </div>
-    </section>
-
-    <!-- Vault + stats -->
-    <section class="panel">
-      <div class="bar">Vault Notes</div>
-      <div class="body" id="vault-body">
-        <div class="empty">No vault notes yet.</div>
-      </div>
-    </section>
+    </div>
   </div>
 
-  <section class="panel">
-    <div class="bar">
-      Symbol Watchlist
-      <span class="count" id="sym-count">0</span>
+  <!-- Closed trades tab -->
+  <div class="tab-panel" data-tab-panel="trades">
+    <div class="card table-card">
+      <div class="table-meta">
+        <div>Closed trades (newest first)</div>
+        <div class="right">
+          <div>Total <b id="trades-total">0</b></div>
+          <div>Cumulative <b id="trades-cum">$0</b></div>
+        </div>
+      </div>
+      <div class="table-scroll" id="trades-body">
+        <div class="empty">No closed trades yet.</div>
+      </div>
     </div>
-    <div class="body">
+  </div>
+
+  <!-- Watchlist -->
+  <div class="tab-panel" data-tab-panel="watchlist">
+    <div class="card table-card">
+      <div class="table-meta">
+        <div>Symbol watchlist &middot; deployed configs</div>
+        <div class="right"><div>Universe: <b id="meta-uni">0</b></div></div>
+      </div>
       <div class="sym-grid" id="sym-grid"></div>
     </div>
-  </section>
+  </div>
+
+  <!-- Attribution -->
+  <div class="tab-panel" data-tab-panel="attribution">
+    <div class="card">
+      <div class="card-head" style="padding:4px 4px 8px"><span class="t">By Exit Reason</span></div>
+      <div id="attr-exit-full"><div class="empty">No data yet.</div></div>
+    </div>
+  </div>
+
+  <!-- Vault -->
+  <div class="tab-panel" data-tab-panel="vault">
+    <div class="card table-card">
+      <div class="table-meta">
+        <div>Recent Obsidian notes</div>
+        <div class="right"><div><b id="vault-count">0</b> notes</div></div>
+      </div>
+      <div style="max-height:420px; overflow-y:auto;" id="vault-body">
+        <div class="empty">No vault notes yet.</div>
+      </div>
+      <div class="vault-links">
+        <a href="obsidian://open?vault=Trading&file=trades">📁 Trades</a>
+        <a href="obsidian://open?vault=Trading&file=research">📁 Research</a>
+        <a href="obsidian://open?vault=Trading&file=incidents">📁 Incidents</a>
+        <a href="obsidian://open?vault=Trading&file=Daily%20Log">📔 Daily Log</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Risk -->
+  <div class="tab-panel" data-tab-panel="risk">
+    <div class="card">
+      <div class="sym-grid" id="risk-grid" style="padding:0;"></div>
+    </div>
+  </div>
 
   <div class="footer" id="footer">—</div>
 
   <script>
     const $ = id => document.getElementById(id);
-    const fmtMoney = v => {
+    const fmtMoney = (v, signed=false) => {
+      const n = Number(v || 0);
+      const sign = signed && n > 0 ? "+" : (n < 0 ? "-" : "");
+      const abs = Math.abs(n);
+      if (abs >= 1e6) return sign + "$" + (abs/1e6).toFixed(2) + "M";
+      if (abs >= 1e3) return sign + "$" + (abs/1e3).toFixed(2) + "K";
+      return sign + "$" + abs.toFixed(2);
+    };
+    const fmtMoneyFull = v => {
       const n = Number(v || 0);
       const sign = n >= 0 ? "" : "-";
       return sign + "$" + Math.abs(n).toFixed(2);
@@ -313,82 +841,860 @@
     const fmtPrice = v => {
       const n = Number(v || 0);
       if (n === 0) return "—";
-      return n < 1 ? n.toFixed(6) : n.toFixed(4);
+      if (n >= 1000) return n.toFixed(2);
+      if (n >= 1) return n.toFixed(4);
+      return n.toFixed(6);
+    };
+    const fmtTs = s => {
+      if (!s) return "—";
+      try {
+        const d = new Date(s);
+        if (isNaN(d)) return s.slice(0, 16);
+        return d.toLocaleString([], {month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'});
+      } catch(e) { return s; }
     };
     const classPN = v => (Number(v) >= 0 ? "pos" : "neg");
+
+    // ── UI state ────────────────────────────
+    const ui = {
+      // Window filter applied to left-side KV row + daily chart ("session" view)
+      sessionWindowDays: 0,      // 0 = all
+      // Main chart mode + window
+      chartMode: 'pnl',          // 'pnl' | 'equity'
+      chartWindowDays: 0,
+      lastState: null,
+      priceCache: {},            // symbol -> last price (for flash detection)
+      mtmHistory: [],            // live mark-to-market trail, built per refresh
+      mtmMax: 720,               // cap at ~30 min of 2.5s ticks
+    };
+
+    // Main tab strip
+    document.querySelectorAll('#tab-strip .tab').forEach(el => {
+      el.onclick = () => {
+        document.querySelectorAll('#tab-strip .tab').forEach(t => t.classList.remove('active'));
+        el.classList.add('active');
+        const key = el.dataset.tab;
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.dataset.tabPanel === key));
+      };
+    });
+
+    // Left panel period tabs (Session window)
+    document.querySelectorAll('#period-tabs .tab').forEach(el => {
+      el.onclick = () => {
+        document.querySelectorAll('#period-tabs .tab').forEach(t => t.classList.remove('active'));
+        el.classList.add('active');
+        ui.sessionWindowDays = Number(el.dataset.window || 0);
+        ui.forceChartUpdate = true;
+        if (ui.lastState) render(ui.lastState);
+      };
+    });
+
+    // Chart mode + window tabs
+    document.querySelectorAll('#chart-mode-tabs .tab').forEach(el => {
+      el.onclick = () => {
+        const siblings = el.parentElement.querySelectorAll('.tab');
+        if (el.dataset.mode) {
+          siblings.forEach(t => { if (t.dataset.mode) t.classList.remove('active'); });
+          el.classList.add('active');
+          ui.chartMode = el.dataset.mode;
+        } else if (el.dataset.window !== undefined) {
+          siblings.forEach(t => { if (t.dataset.window !== undefined) t.classList.remove('active'); });
+          el.classList.add('active');
+          ui.chartWindowDays = Number(el.dataset.window || 0);
+        }
+        ui.forceChartUpdate = true;
+        if (ui.lastState) render(ui.lastState);
+      };
+    });
+
+    // ── Window helpers ──────────────────────
+    function parseTs(ts) {
+      if (!ts) return NaN;
+      const s = typeof ts === 'string' ? ts.replace(' ', 'T') : ts;
+      return new Date(s).getTime();
+    }
+    // Midnight-anchored cutoff (local time): 1d = since today's 00:00,
+    // 7d = since 00:00 seven days ago, etc. Resets at midnight, doesn't slide.
+    // 0/null → no cutoff (All).
+    function windowCutoff(days) {
+      if (!days) return 0;
+      const d = new Date();
+      d.setHours(0, 0, 0, 0);
+      d.setDate(d.getDate() - (days - 1));
+      return d.getTime();
+    }
+    function filterByWindow(points, days, keyFn = p => p.ts) {
+      if (!days || !points || points.length === 0) return points || [];
+      const cutoff = windowCutoff(days);
+      return points.filter(p => {
+        const ts = keyFn(p);
+        if (!ts) return false;
+        const t = parseTs(ts);
+        if (Number.isNaN(t)) return false;
+        return t >= cutoff;
+      });
+    }
+    function filterTradesByWindow(trades, days) {
+      if (!days || !trades) return trades || [];
+      const cutoff = windowCutoff(days);
+      return trades.filter(t => {
+        const ts = parseTs(t.timestamp);
+        if (Number.isNaN(ts)) return false;
+        return ts >= cutoff;
+      });
+    }
+
+    // ── Flash helper ────────────────────────
+    function flashCell(el, up) {
+      if (!el) return;
+      el.classList.remove('flash-up', 'flash-down');
+      void el.offsetWidth; // restart animation
+      el.classList.add(up ? 'flash-up' : 'flash-down');
+    }
+
+    // ── Charts
+    Chart.defaults.color = '#7a8480';
+    Chart.defaults.borderColor = '#1b2420';
+    Chart.defaults.font.family = 'JetBrains Mono, monospace';
+    Chart.defaults.font.size = 10;
+
+    // Paint gradients onto the dataset.fill.above / .below every layout pass so
+    // profit areas are mint and loss areas are orange, fading toward the baseline.
+    const gradientFillPlugin = {
+      id: 'gradientFill',
+      beforeDatasetsDraw(chart) {
+        const {ctx, chartArea, scales} = chart;
+        if (!chartArea || !scales.y) return;
+        const baseline = chart.$baseline || 0;
+        const baselinePx = Math.max(chartArea.top,
+          Math.min(chartArea.bottom, scales.y.getPixelForValue(baseline)));
+        const ds = chart.data.datasets[0];
+        if (!ds || !ds.fill || typeof ds.fill !== 'object') return;
+
+        const aboveGrad = ctx.createLinearGradient(0, chartArea.top, 0, baselinePx);
+        if (chart.$mode === 'equity') {
+          aboveGrad.addColorStop(0, 'rgba(96,165,250,0.40)');
+          aboveGrad.addColorStop(1, 'rgba(96,165,250,0.02)');
+        } else {
+          aboveGrad.addColorStop(0, 'rgba(52,211,153,0.40)');
+          aboveGrad.addColorStop(1, 'rgba(52,211,153,0.02)');
+        }
+
+        const belowGrad = ctx.createLinearGradient(0, baselinePx, 0, chartArea.bottom);
+        belowGrad.addColorStop(0, 'rgba(239,68,68,0.02)');
+        belowGrad.addColorStop(1, 'rgba(239,68,68,0.40)');
+
+        ds.fill.above = aboveGrad;
+        ds.fill.below = belowGrad;
+      },
+    };
+
+    // Draws a dashed horizontal line at the baseline (0 in PNL mode, start balance in Equity mode)
+    const baselinePlugin = {
+      id: 'baselineLine',
+      afterDatasetsDraw(chart) {
+        const {ctx, chartArea, scales} = chart;
+        const baseline = chart.$baseline || 0;
+        const y = scales.y.getPixelForValue(baseline);
+        if (y < chartArea.top || y > chartArea.bottom) return;
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+        ctx.setLineDash([4, 5]);
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(chartArea.left, y);
+        ctx.lineTo(chartArea.right, y);
+        ctx.stroke();
+        ctx.restore();
+      },
+    };
+
+    // Vertical crosshair line on hover
+    const crosshairPlugin = {
+      id: 'crosshair',
+      afterDatasetsDraw(chart) {
+        const active = chart.getActiveElements?.() || [];
+        if (!active.length) return;
+        const {ctx, chartArea} = chart;
+        const x = active[0].element.x;
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+        ctx.setLineDash([2, 3]);
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x, chartArea.top);
+        ctx.lineTo(x, chartArea.bottom);
+        ctx.stroke();
+        ctx.restore();
+      },
+    };
+
+    const equityChart = new Chart($('equityChart'), {
+      type: 'line',
+      plugins: [gradientFillPlugin, baselinePlugin, crosshairPlugin],
+      data: { labels: [], datasets: [{
+        label: 'Equity',
+        data: [],
+        borderColor: '#34d399',
+        borderWidth: 2,
+        backgroundColor: 'transparent',
+        fill: { target: { value: 0 }, above: 'rgba(52,211,153,0.20)', below: 'rgba(239,68,68,0.20)' },
+        tension: 0.1,
+        cubicInterpolationMode: 'monotone',
+        pointRadius: 0,
+        pointHoverRadius: 5,
+        pointHoverBorderWidth: 2,
+        pointHoverBorderColor: '#000',
+        pointHoverBackgroundColor: ctx => {
+          const v = Number(ctx.parsed?.y || 0);
+          const b = ctx.chart?.$baseline || 0;
+          const aboveColor = ctx.chart?.$mode === 'equity' ? '#60a5fa' : '#34d399';
+          return v >= b ? aboveColor : '#ef4444';
+        },
+        segment: {
+          borderColor: ctx => {
+            const b = ctx.chart.$baseline || 0;
+            const aboveColor = ctx.chart.$mode === 'equity' ? '#60a5fa' : '#34d399';
+            // Red only when both endpoints sit below baseline.
+            // Interpolated baseline-crossings ensure the transition snaps exactly at baseline.
+            return (ctx.p0.parsed.y <= b && ctx.p1.parsed.y <= b) ? '#ef4444' : aboveColor;
+          },
+        },
+      }]},
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        animation: { duration: 400, easing: 'easeOutCubic' },
+        animations: {
+          y: { duration: 400, easing: 'easeOutCubic' },
+          x: { duration: 400, easing: 'easeOutCubic' },
+        },
+        transitions: {
+          active: { animation: { duration: 150 } },
+        },
+        interaction: { mode: 'index', intersect: false, axis: 'x' },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            enabled: true,
+            backgroundColor: 'rgba(0,0,0,0.92)',
+            borderColor: '#161c19',
+            borderWidth: 1,
+            padding: 10,
+            titleColor: '#e7efe9',
+            titleFont: { family: 'JetBrains Mono, monospace', size: 11, weight: '600' },
+            bodyColor: '#e7efe9',
+            bodyFont: { family: 'JetBrains Mono, monospace', size: 11 },
+            displayColors: false,
+            callbacks: {
+              label(c) {
+                const v = Number(c.parsed.y);
+                const fmt = n => {
+                  const a = Math.abs(n);
+                  const s = n < 0 ? '-' : (n > 0 ? '+' : '');
+                  if (a >= 1e6) return s + '$' + (a/1e6).toFixed(2) + 'M';
+                  if (a >= 1e3) return s + '$' + (a/1e3).toFixed(2) + 'K';
+                  return s + '$' + a.toFixed(2);
+                };
+                if (c.chart.$mode === 'equity') {
+                  const pnl = v - (c.chart.$baseline || 0);
+                  return ['Equity: ' + fmt(v), 'P&L: ' + fmt(pnl)];
+                }
+                return ['P&L: ' + fmt(v)];
+              },
+            },
+          },
+        },
+        scales: {
+          x: {
+            type: 'time',
+            time: {
+              tooltipFormat: 'MMM d, HH:mm',
+              displayFormats: { minute: 'HH:mm', hour: 'HH:mm', day: 'd/MMM', week: 'd/MMM', month: 'd/MMM' },
+            },
+            grid: { display: false },
+            ticks: { maxTicksLimit: 7, color: '#4a544e', source: 'auto' },
+            border: { display: false },
+          },
+          y: {
+            grid: { color: 'rgba(255,255,255,0.03)' },
+            ticks: {
+              color: '#4a544e',
+              callback: v => {
+                const n = Math.abs(Number(v));
+                if (n >= 1e6) return '$' + (v/1e6).toFixed(1) + 'M';
+                if (n >= 1e3) return '$' + (v/1e3).toFixed(1) + 'K';
+                return '$' + v;
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // Clear any stale hover/tooltip state when the cursor leaves the chart
+    // so the active point doesn't "drift" on subsequent live data updates.
+    (() => {
+      const canvas = $('equityChart');
+      canvas.addEventListener('mouseleave', () => {
+        equityChart.setActiveElements([]);
+        equityChart.tooltip.setActiveElements([], { x: 0, y: 0 });
+        equityChart.update('none');
+      });
+    })();
+
+    function renderEquity(points, startBalance, mode = 'pnl', windowDays = 0, yRefBalance = null) {
+      const base = Number(startBalance || 0);
+      const yRef = yRefBalance != null ? Number(yRefBalance) : base;
+      const baseline = mode === 'pnl' ? 0 : base;
+      const nowMs = Date.now();
+
+      // Adaptive bucket size + time tick unit/step based on window.
+      // 24h uses 1-sec buckets → every poll shows up as a new data point, so the
+      // line breathes in real time like the crypto/commodities dashboards.
+      let BUCKET_MS, timeUnit, stepSize, maxTicks;
+      if (windowDays === 1)        { BUCKET_MS = 5000;                timeUnit = 'minute'; stepSize = 15; maxTicks = 16; } // 24h → 5-sec buckets (smooths sub-5s noise, consistent density)
+      else if (windowDays === 7)   { BUCKET_MS = 2 * 60 * 60 * 1000; timeUnit = 'day';  stepSize = 1;  maxTicks = 7;  } // 7d  → 2h buckets, 1-day ticks
+      else if (windowDays === 30)  { BUCKET_MS = 2 * 60 * 60 * 1000; timeUnit = 'day';  stepSize = 1;  maxTicks = 10; } // 30d → 2h buckets, 1-day ticks
+      else                         { BUCKET_MS = 12 * 60 * 60 * 1000; timeUnit = 'month'; stepSize = 1; maxTicks = 8; } // All → 12h buckets, month ticks
+
+      const bucket = new Map();
+      (points || []).forEach(p => {
+        if (!p || !p.ts) return;
+        const tsStr = typeof p.ts === 'string' ? p.ts.replace(' ', 'T') : p.ts;
+        const ms = new Date(tsStr).getTime();
+        const y = mode === 'pnl' ? Number(p.balance) - yRef : Number(p.balance);
+        if (!Number.isFinite(ms) || !Number.isFinite(y)) return;
+        const key = Math.floor(ms / BUCKET_MS) * BUCKET_MS;
+        const existing = bucket.get(key);
+        if (!existing || existing.x <= ms) bucket.set(key, { x: ms, y });
+      });
+      const raw = Array.from(bucket.values()).sort((a, b) => a.x - b.x);
+
+      // Interpolate baseline-crossings so segment colors flip exactly at the baseline.
+      const data = [];
+      for (let i = 0; i < raw.length; i++) {
+        data.push(raw[i]);
+        if (i < raw.length - 1) {
+          const v0 = raw[i].y - baseline;
+          const v1 = raw[i + 1].y - baseline;
+          if ((v0 > 0 && v1 < 0) || (v0 < 0 && v1 > 0)) {
+            const t = v0 / (v0 - v1);
+            const crossX = raw[i].x + (raw[i + 1].x - raw[i].x) * t;
+            data.push({ x: crossX, y: baseline });
+          }
+        }
+      }
+
+      // X-range snaps to the actual data span so the line always fills the chart.
+      const cutoff = windowDays > 0 ? windowCutoff(windowDays) : 0;
+      const effectiveMin = (windowDays > 0 && data.length > 0)
+        ? Math.max(cutoff, data[0].x)
+        : (data.length > 0 ? data[0].x : cutoff);
+      const effectiveMax = data.length > 0 ? Math.max(data[data.length - 1].x, nowMs) : nowMs;
+
+      const yData = data.map(d => d.y);
+
+      equityChart.$baseline = baseline;
+      equityChart.$mode = mode;
+      equityChart.data.labels = [];
+      equityChart.data.datasets[0].data = data;
+      equityChart.data.datasets[0].fill = { target: { value: equityChart.$baseline } };
+
+      // Set the time-unit, step size, and tick limit for the window.
+      equityChart.options.scales.x.time.unit = timeUnit;
+      equityChart.options.scales.x.time.stepSize = stepSize;
+      equityChart.options.scales.x.ticks.maxTicksLimit = maxTicks;
+
+      // X-axis range: snap to actual data when window data is sparse.
+      if (windowDays > 0) {
+        equityChart.options.scales.x.min = effectiveMin;
+        equityChart.options.scales.x.max = effectiveMax;
+        if (equityChart.scales && equityChart.scales.x) {
+          equityChart.scales.x.options.min = effectiveMin;
+          equityChart.scales.x.options.max = effectiveMax;
+          equityChart.scales.x.options.time.unit = timeUnit;
+          equityChart.scales.x.options.time.stepSize = stepSize;
+          equityChart.scales.x.options.ticks.maxTicksLimit = maxTicks;
+        }
+      } else {
+        delete equityChart.options.scales.x.min;
+        delete equityChart.options.scales.x.max;
+        if (equityChart.scales && equityChart.scales.x) {
+          delete equityChart.scales.x.options.min;
+          delete equityChart.scales.x.options.max;
+          equityChart.scales.x.options.time.unit = timeUnit;
+          equityChart.scales.x.options.time.stepSize = stepSize;
+          equityChart.scales.x.options.ticks.maxTicksLimit = maxTicks;
+        }
+      }
+
+      // Y-axis: tight scaling with clean stepped ticks (~8 ticks target).
+      if (yData.length > 0) {
+        const minD = Math.min(...yData);
+        const maxD = Math.max(...yData);
+        const span = Math.max(maxD - minD, Math.abs(maxD) * 0.02, 1);
+        const pad = span * 0.15;
+        const roughStep = (span + 2 * pad) / 8;
+        const mag = Math.pow(10, Math.floor(Math.log10(roughStep)));
+        const frac = roughStep / mag;
+        const niceMult = frac < 1.5 ? 1 : frac < 3 ? 2 : frac < 7 ? 5 : 10;
+        const niceStep = niceMult * mag;
+        let yMin = Math.floor((minD - pad) / niceStep) * niceStep;
+        let yMax = Math.ceil((maxD + pad) / niceStep) * niceStep;
+        // Spec: "Y-axis includes zero. Always." — in PnL mode, 0 must be
+        // visible as the reference line regardless of how far above/below
+        // the curve sits. Previously this was gated on minD < span*0.5,
+        // so an all-positive session would push 0 off the chart.
+        if (mode === 'pnl') {
+          yMin = Math.min(yMin, 0);
+          yMax = Math.max(yMax, 0);
+        }
+        equityChart.options.scales.y.min = yMin;
+        equityChart.options.scales.y.max = yMax;
+        equityChart.options.scales.y.ticks.stepSize = niceStep;
+        equityChart.options.scales.y.ticks.includeBounds = false;
+      } else {
+        delete equityChart.options.scales.y.min;
+        delete equityChart.options.scales.y.max;
+        delete equityChart.options.scales.y.ticks.stepSize;
+      }
+      equityChart.update('none');
+    }
+
+    function renderSpark(points, sessionPnl) {
+      if (!points || points.length < 2) { $('sparkLine').setAttribute('points',''); return; }
+      const ys = points.map(p => Number(p.balance));
+      const minY = Math.min(...ys), maxY = Math.max(...ys);
+      const span = (maxY - minY) || 1;
+      const xs = ys.map((y, i) => {
+        const x = (i / (ys.length - 1)) * 78 + 1;
+        const yv = 20 - ((y - minY) / span) * 18;
+        return `${x},${yv}`;
+      }).join(' ');
+      // Color matches the P&L (session) headline sign directly — comparing
+      // first vs last plotted point diverges when the live mtm trail dips
+      // even though the window's net P&L is still positive.
+      const color = Number(sessionPnl) >= 0 ? '#34d399' : '#ef4444';
+      const line = $('sparkLine');
+      line.setAttribute('points', xs);
+      line.setAttribute('stroke', color);
+    }
+
+    function renderAttr(rows, target, extra) {
+      if (!rows || rows.length === 0) {
+        target.innerHTML = '<div class="empty">No data yet.</div>';
+        return;
+      }
+      const cols = extra
+        ? '<th>Key</th><th class="num">P&L</th><th class="num">Trades</th><th class="num">WR</th><th class="num">PF</th>'
+        : '<th>Key</th><th class="num">P&L</th><th class="num">Trades</th><th class="num">WR</th>';
+      let html = `<table><thead><tr>${cols}</tr></thead><tbody>`;
+      for (const r of rows) {
+        const pnlClass = classPN(r.pnl);
+        html += `<tr>
+          <td><b>${r.key}</b></td>
+          <td class="num ${pnlClass}">${fmtMoneyFull(r.pnl)}</td>
+          <td class="num">${r.trades}</td>
+          <td class="num">${r.win_rate.toFixed(1)}%</td>
+          ${extra ? `<td class="num">${r.profit_factor != null ? r.profit_factor.toFixed(2) : '—'}</td>` : ''}
+        </tr>`;
+      }
+      html += '</tbody></table>';
+      target.innerHTML = html;
+    }
+
+    function renderRisk(s) {
+      const rg = $('risk-grid');
+      const tiles = [
+        {k: 'Max Concurrent', v: `${s.open_count} / ${s.max_concurrent}`},
+        {k: 'Max Eff Lev', v: `${Number(s.effective_leverage).toFixed(1)}× (BTC-tier)`},
+        {k: 'Margin / Trade', v: `${(Number(s.margin_pct)*100).toFixed(0)}%`},
+        {k: 'Set Lev (cap)', v: `${s.set_leverage}×`},
+        {k: 'Commission', v: `${(Number(s.commission_pct)*100).toFixed(3)}%`},
+        {k: 'Daily P&L', v: fmtMoneyFull(s.daily_pnl)},
+        {k: 'Consec Losses', v: `${s.consecutive_losses} / 5`},
+        {k: 'Kill Switch', v: s.kill_switch ? 'TRIGGERED' : 'ok'},
+        {k: 'DD Halt', v: s.account_dd_halt ? 'TRIGGERED' : 'ok'},
+      ];
+      rg.innerHTML = tiles.map(t => `
+        <div class="sym-card">
+          <div class="meta">${t.k}</div>
+          <div class="sym" style="margin-top:6px">${t.v}</div>
+        </div>`).join('');
+    }
+
+    // Gauge pointer position on a 180° arc (10,66 → 110,66, radius 50).
+    // Convention: dotId is the tip circle; needleId (optional) is the line
+    // whose x2,y2 follow the tip so the speedometer needle tracks the dot.
+    function setGaugePointer(dotId, pct, needleId) {
+      const dot = $(dotId);
+      if (!dot) return; // gauge may be text-only (no arc)
+      const theta = Math.PI * (1 - pct); // 180° → 0°
+      const cx = 60, cy = 66, r = 50;
+      const x = cx + r * Math.cos(theta);
+      const y = cy - r * Math.sin(theta);
+      dot.setAttribute('cx', x.toFixed(1));
+      dot.setAttribute('cy', y.toFixed(1));
+      if (needleId) {
+        const needle = $(needleId);
+        if (needle) {
+          const shrink = 6;
+          const nx = cx + (r - shrink) * Math.cos(theta);
+          const ny = cy - (r - shrink) * Math.sin(theta);
+          needle.setAttribute('x2', nx.toFixed(1));
+          needle.setAttribute('y2', ny.toFixed(1));
+        }
+      }
+    }
 
     async function refresh() {
       try {
         const r = await fetch("/api/state");
         const s = await r.json();
+        ui.lastState = s;
+        render(s);
+      } catch (e) {
+        console.error("refresh failed", e);
+      }
+    }
 
-        // Header
+    function renderTicker(items) {
+      const track = document.getElementById("ticker-track");
+      if (!track) return;
+      const list = Array.isArray(items) ? items.filter(t => t && t.symbol) : [];
+      if (!list.length) return;
+      // Build track once; duplicate the row so the marquee loops seamlessly.
+      // Rebuild only if the symbol list changed so the scroll animation
+      // doesn't restart on every 2s refresh.
+      const sig = list.map(t => t.symbol).join("|");
+      if (track.dataset.sig !== sig) {
+        track.innerHTML = "";
+        for (let copy = 0; copy < 2; copy++) {
+          list.forEach(t => {
+            const el = document.createElement("span");
+            el.className = "ticker-item";
+            el.dataset.sym = t.symbol;
+            el.innerHTML = '<b></b><span class="px"></span><span class="chg"></span>';
+            el.querySelector("b").textContent = t.symbol;
+            track.appendChild(el);
+          });
+        }
+        track.dataset.sig = sig;
+      }
+      list.forEach(t => {
+        const nodes = track.querySelectorAll('.ticker-item[data-sym="' + CSS.escape(t.symbol) + '"]');
+        nodes.forEach(el => {
+          el.querySelector(".px").textContent = fmtPrice(t.price);
+          const ch = el.querySelector(".chg");
+          if (t.change_pct === null || t.change_pct === undefined) {
+            ch.textContent = "";
+            ch.className = "chg na";
+          } else {
+            const v = Number(t.change_pct);
+            ch.textContent = (v >= 0 ? "+" : "") + v.toFixed(2) + "%";
+            ch.className = "chg " + (v >= 0 ? "up" : "dn");
+          }
+        });
+      });
+    }
+
+    function render(s) {
+      try {
+        renderTicker(s.ticker);
+        // Meta / status
         const modeTag = $("mode-tag");
         modeTag.textContent = s.mode;
         modeTag.className = "tag " + (s.mode === "LIVE" ? "mode-live" : "mode-paper");
         $("network-tag").textContent = s.network;
         $("eff-lev").textContent = Number(s.effective_leverage).toFixed(1);
-        $("max-conc").textContent = s.max_concurrent;
+        $("margin-pct").textContent = (Number(s.margin_pct)*100).toFixed(0);
+        $("set-lev").textContent = s.set_leverage;
 
         const halted = s.kill_switch || s.account_dd_halt || s.consecutive_loss_halt;
-        $("status-dot").className = "status-dot" + (halted ? " halt" : "");
+        const pill = $("status-pill");
+        pill.classList.toggle("live", !halted);
+        pill.classList.toggle("halted", halted);
         $("status-text").textContent = halted ? "HALTED" : "live";
 
-        if (s.last_refresh) {
-          const ts = new Date(s.last_refresh);
-          $("refresh-tag").textContent = ts.toLocaleTimeString();
+        if (s.last_refresh) $("refresh-tag").textContent = new Date(s.last_refresh).toLocaleTimeString();
+
+        // Equity hero — live equity includes unrealized P&L from open positions
+        const startBal = Number(s.starting_balance || 0);
+        const unrealizedTotal = (s.positions || []).reduce(
+          (a, p) => a + Number(p.unrealized || 0), 0);
+        const liveEquity = Number(s.balance) + unrealizedTotal;
+        // Real realized = balance change. `s.stats.total_pnl` is the sum of
+        // trade.pnl which excludes entry commissions, so it diverges from
+        // balance-based truth. Always use `balance - startBal`.
+        const realizedPnl = Number(s.balance) - startBal;
+        const totalPnl = realizedPnl + unrealizedTotal;
+        const totalPct = startBal ? (totalPnl / startBal * 100) : 0;
+        $("hero-balance").textContent = fmtMoneyFull(liveEquity);
+        $("hero-start").textContent = startBal.toFixed(0);
+        const heroDelta = $("hero-delta");
+        heroDelta.textContent = (totalPct >= 0 ? "+" : "") + totalPct.toFixed(2) + "%";
+        heroDelta.className = totalPct >= 0 ? "pos" : "neg";
+        const peak = Math.max(Number(s.account_peak_balance || 0), liveEquity);
+        const dd = peak > 0 ? ((peak - liveEquity) / peak * 100) : 0;
+        $("kv-dd").textContent = dd.toFixed(2) + "%";
+        $("kv-dd").className = "v " + (dd > 0 ? "neg" : "pos");
+
+        // Perps / Vault allocation bar — matches HyperTracker model.
+        // Perps = account value held in HL perp subaccount (margin + unrealized + free margin).
+        // Vault = account value staked in HL vaults.
+        // Paper bot has no vault so Perps = 100% of equity, Vault = 0% by construction.
+        // Hover tooltip shows the notional-exposure number separately.
+        const perpsNotional = (s.positions || []).reduce(
+          (a, p) => a + Math.abs(Number(p.notional || 0)), 0);
+        const vaultValue = Number(s.vault_value || 0);                       // paper => 0
+        const perpsValue = Math.max(liveEquity - vaultValue, 0);
+        const perpsPct = liveEquity > 0 ? (perpsValue / liveEquity * 100) : 100;
+        const vaultPct = 100 - perpsPct;
+        $("alloc-perps").style.flexBasis = perpsPct.toFixed(1) + "%";
+        $("alloc-idle").style.flexBasis = vaultPct.toFixed(1) + "%";
+        // Drive the continuous bar gradient's hard-stop so the color boundary
+        // exactly matches the Perps/Vault split — no visible seam.
+        document.querySelector(".alloc-bar").style.setProperty("--perps-split", perpsPct.toFixed(2) + "%");
+        $("alloc-perps-label").textContent = perpsPct >= 12 ? "Perps" : "";
+        $("alloc-idle-label").textContent  = vaultPct >= 12 ? "Vault" : "";
+        // Tooltip data — main value is perp-account-value (like HyperTracker).
+        // Also expose notional exposure for a second line in the hover tip.
+        $("alloc-perps").dataset.val = perpsValue.toFixed(2);
+        $("alloc-perps").dataset.pct = perpsPct.toFixed(2);
+        $("alloc-perps").dataset.notional = perpsNotional.toFixed(2);
+        $("alloc-idle").dataset.val = vaultValue.toFixed(2);
+        $("alloc-idle").dataset.pct = vaultPct.toFixed(2);
+
+        // Bias gauge — weighted by notional exposure, not just count,
+        // so a single $10k short doesn't read the same as four $1k longs.
+        const longNotional = s.positions
+          .filter(p => p.side === "long")
+          .reduce((a, p) => a + Math.abs(Number(p.notional || 0)), 0);
+        const shortNotional = s.positions
+          .filter(p => p.side === "short")
+          .reduce((a, p) => a + Math.abs(Number(p.notional || 0)), 0);
+        const totalNotional = longNotional + shortNotional;
+        let biasPct = 0.5, biasLabel = "Flat", biasClass = "neutral", biasTrend = "";
+        if (totalNotional > 0) {
+          biasPct = longNotional / totalNotional;
+          if (biasPct >= 0.95)      { biasLabel = "Very Bullish"; biasClass = "bullish"; biasTrend = "↗↗"; }
+          else if (biasPct >= 0.65) { biasLabel = "Bullish";      biasClass = "bullish"; biasTrend = "↗"; }
+          else if (biasPct >  0.55) { biasLabel = "Lean Long";    biasClass = "bullish"; biasTrend = ""; }
+          else if (biasPct >= 0.45) { biasLabel = "Balanced";     biasClass = "neutral"; biasTrend = ""; }
+          else if (biasPct >  0.35) { biasLabel = "Lean Short";   biasClass = "bearish"; biasTrend = ""; }
+          else if (biasPct >  0.05) { biasLabel = "Bearish";      biasClass = "bearish"; biasTrend = "↘"; }
+          else                      { biasLabel = "Very Bearish"; biasClass = "bearish"; biasTrend = "↘↘"; }
+        }
+        setGaugePointer("biasDot", biasPct, "biasNeedle");
+        const biasEl = $("biasLabel");
+        biasEl.innerHTML = biasLabel + (biasTrend ? ` <span class="trend">${biasTrend}</span>` : "");
+        biasEl.className = "hero-label " + biasClass;
+
+        // Leverage gauge — HyperTracker model: notional / perp-account-value.
+        // For paper (no vault) this equals notional / total equity. For an account
+        // with vault staking, perps sub-account is smaller so leverage reads higher —
+        // same metric 58bro's tracker uses (e.g., $24M notional / $5M perps = 4.76×).
+        const portfolioLev = perpsValue > 0 ? (perpsNotional / perpsValue) : 0;
+        const capLev = Math.max(
+          Number(s.effective_leverage || 1) * Number(s.max_concurrent || 1),
+          Number(s.effective_leverage || 1) * 2,
+          1
+        );
+        const levPct = Math.min(1, Math.max(0, portfolioLev / capLev));
+        setGaugePointer("levDot", levPct, "levNeedle");
+        $("levValue").textContent = portfolioLev.toFixed(2) + "×";
+
+        // KV rows — balance-based session P&L (same logic as headline).
+        const sessionTrades = filterTradesByWindow(s.trade_history || [], ui.sessionWindowDays);
+        let sessionBalAtCutoff = startBal;
+        if (ui.sessionWindowDays > 0) {
+          const sCut = windowCutoff(ui.sessionWindowDays);
+          for (const p of (s.equity_curve || [])) {
+            if (!p.ts) { sessionBalAtCutoff = Number(p.balance); continue; }
+            const t = parseTs(p.ts);
+            if (Number.isNaN(t)) continue;
+            if (t <= sCut) sessionBalAtCutoff = Number(p.balance);
+            else break;
+          }
+        }
+        const sessionPnl = liveEquity - sessionBalAtCutoff;
+        const sessionWins = sessionTrades.filter(t => Number(t.pnl || 0) > 0).length;
+        const sessionLosses = sessionTrades.filter(t => Number(t.pnl || 0) < 0).length;
+        const sessionTotal = sessionWins + sessionLosses;
+        const sessionWR = sessionTotal ? (sessionWins / sessionTotal * 100) : 0;
+        const sessionGW = sessionTrades.filter(t => Number(t.pnl || 0) > 0).reduce((a, t) => a + Number(t.pnl), 0);
+        const sessionGL = -sessionTrades.filter(t => Number(t.pnl || 0) < 0).reduce((a, t) => a + Number(t.pnl), 0);
+        const sessionPF = sessionGL > 0 ? sessionGW / sessionGL : null;
+        const sessionVol = sessionTrades.reduce((a, t) => a + Math.abs(Number(t.notional || 0)), 0)
+          + (s.positions || []).reduce((a, p) => a + Math.abs(Number(p.notional || 0)), 0);
+        const sessionPct = startBal ? (sessionPnl / startBal * 100) : 0;
+
+        $("kv-delta-pct").textContent = (sessionPct >= 0 ? "+" : "") + sessionPct.toFixed(2) + "%";
+        $("kv-delta-pct").className = "delta " + (sessionPct >= 0 ? "pos" : "neg");
+        $("kv-pnl").textContent = fmtMoneyFull(sessionPnl);
+        $("kv-pnl").className = "v " + classPN(sessionPnl);
+
+        $("kv-volume").textContent = fmtMoneyFull(sessionVol);
+        $("kv-winrate").textContent = sessionTotal
+          ? sessionWR.toFixed(1) + "% (" + sessionWins + "/" + sessionLosses + ")"
+          : "—";
+        // PF display: ∞ when there are wins but no losses (WR 100%),
+        // — only when there are no closed trades at all
+        if (sessionPF != null) {
+          $("kv-pf").textContent = sessionPF.toFixed(2);
+        } else if (sessionGW > 0 && sessionGL === 0) {
+          $("kv-pf").textContent = "∞";
+        } else {
+          $("kv-pf").textContent = "—";
         }
 
-        // KPIs
-        $("kpi-balance").textContent = fmtMoney(s.balance);
-        $("kpi-balance").className = "value " + classPN(s.balance - s.starting_balance);
-        $("kpi-start").textContent = Number(s.starting_balance).toFixed(0);
+        // Headline = PNL over the selected window.
+        // Find the balance AT the window cutoff by walking equity_curve —
+        // the latest balance recorded before (or at) cutoff represents the
+        // equity at that moment. Window PNL = current liveEquity - that balance.
+        let windowPnl;
+        let chartBaselineBal = startBal; // equity at window start → chart y=0 reference
+        if (!ui.chartWindowDays) {
+          windowPnl = totalPnl;
+        } else {
+          const cutoffMs = windowCutoff(ui.chartWindowDays);
+          let balanceAtCutoff = startBal;
+          for (const p of (s.equity_curve || [])) {
+            if (!p.ts) { balanceAtCutoff = Number(p.balance); continue; }
+            const t = parseTs(p.ts);
+            if (Number.isNaN(t)) continue;
+            if (t <= cutoffMs) balanceAtCutoff = Number(p.balance);
+            else break;
+          }
+          windowPnl = liveEquity - balanceAtCutoff;
+          chartBaselineBal = balanceAtCutoff;
+        }
+        const headlineVal = ui.chartMode === 'equity' ? liveEquity : windowPnl;
+        $("headline-pnl").textContent = ui.chartMode === 'equity'
+          ? fmtMoneyFull(headlineVal)
+          : ((headlineVal >= 0 ? "+" : "") + fmtMoneyFull(headlineVal));
+        $("headline-pnl").className = "v " + (ui.chartMode === 'equity'
+          ? (headlineVal >= s.starting_balance ? 'pos' : 'neg')
+          : classPN(headlineVal));
 
-        $("kpi-daily").textContent = fmtMoney(s.daily_pnl);
-        $("kpi-daily").className = "value " + classPN(s.daily_pnl);
-        const dailyPct = s.starting_balance ? (s.daily_pnl / s.starting_balance * 100) : 0;
-        $("kpi-daily-pct").textContent = dailyPct.toFixed(2) + "%";
+        // Live equity curve — push a point on EVERY poll so the chart breathes
+        // continuously (like the crypto/commodities dashboards). Chart re-renders
+        // on every poll so the rightmost point tracks price moves in real time.
+        const unrealizedSum = (s.positions || []).reduce(
+          (a, p) => a + Number(p.unrealized || 0), 0);
+        const newMtm = Number(s.balance) + unrealizedSum;
 
-        $("kpi-open").textContent = s.open_count + " / " + s.max_concurrent;
+        ui.mtmHistory.push({
+          ts: new Date().toISOString(),
+          balance: newMtm,
+          unrealized: unrealizedSum,
+        });
+        if (ui.mtmHistory.length > ui.mtmMax) {
+          ui.mtmHistory = ui.mtmHistory.slice(-ui.mtmMax);
+        }
 
-        $("kpi-peak").textContent = fmtMoney(s.account_peak_balance);
-        const dd = s.account_peak_balance > 0
-          ? ((s.account_peak_balance - s.balance) / s.account_peak_balance * 100)
-          : 0;
-        $("kpi-dd").textContent = dd.toFixed(2) + "%";
+        {
+          // 24h: mtmHistory only — continuous live feed so the rightmost point
+          // visibly moves on each poll. equity_curve spans many hours which
+          // crushes the live motion into sub-pixel changes on the 24h scale.
+          // Longer windows: combine equity_curve (historical trade closes) +
+          // mtmHistory so the full period shows.
+          //
+          // Spec: "first point MUST be pnl = 0 at now() - 24h". mtmHistory
+          // alone only starts collecting from when the tab was opened, so we
+          // prepend a synthetic anchor at the true 24h-ago timestamp with
+          // balance = chartBaselineBal. In PnL mode renderEquity subtracts
+          // the baseline, so that anchor lands at y=0 — pinning the left edge.
+          let curveWithLive;
+          if (ui.chartWindowDays === 1) {
+            // Anchor the left edge at the cutoff windowCutoff() uses (so
+            // filterByWindow doesn't drop it) with balance = chartBaselineBal.
+            // In PnL mode renderEquity subtracts chartBaselineBal, so this
+            // anchor lands at y=0 — the "first point MUST be pnl = 0" rule.
+            const anchorTs = new Date(windowCutoff(1) + 1).toISOString();
+            curveWithLive = [
+              { ts: anchorTs, balance: chartBaselineBal },
+              ...ui.mtmHistory,
+            ];
+          } else {
+            curveWithLive = [...(s.equity_curve || []), ...ui.mtmHistory];
+          }
+          const eqFiltered = filterByWindow(curveWithLive, ui.chartWindowDays);
+          // In PNL mode, y = balance - chartBaselineBal (equity at window start).
+          // In Equity mode, y = absolute balance (ref still startBal for "+% from start").
+          const yRef = ui.chartMode === 'equity' ? startBal : chartBaselineBal;
+          renderEquity(eqFiltered, startBal, ui.chartMode, ui.chartWindowDays, yRef);
+          const sparkCurve = [...(s.equity_curve || []), ...ui.mtmHistory];
+          renderSpark(filterByWindow(sparkCurve, ui.sessionWindowDays), sessionPnl);
+          ui.forceChartUpdate = false;
+        }
+        const windowLabel =
+          ui.chartWindowDays === 0 ? 'All' :
+          ui.chartWindowDays === 1 ? '24h' :
+          ui.chartWindowDays + 'd';
+        $("headline-label").textContent = 'All ' + (ui.chartMode === 'equity' ? 'Equity' : 'PNL')
+          + ' (' + windowLabel + ')';
 
-        $("kpi-losses").textContent = s.consecutive_losses + " / 5";
-        $("kpi-halt-state").textContent = halted
-          ? (s.kill_switch ? "KILL SWITCH" : s.account_dd_halt ? "DD HALT" : "LOSS HALT")
-          : "ok";
-        $("kpi-halt-state").style.color = halted ? "var(--red)" : "var(--muted)";
+        // Tab counts
+        $("tc-pos").textContent = "(" + s.positions.length + ")";
+        $("tc-trades").textContent = "(" + (s.trade_history || []).length + ")";
+        $("tc-syms").textContent = "(" + s.symbols.length + ")";
 
-        // Positions
-        $("pos-count").textContent = s.positions.length;
+        // Positions table
+        const longValue = s.positions.filter(p => p.side === "long").reduce((a, p) => a + Number(p.notional || 0), 0);
+        const shortValue = s.positions.filter(p => p.side === "short").reduce((a, p) => a + Number(p.notional || 0), 0);
+        const sumUnrl = s.positions.reduce((a, p) => a + Number(p.unrealized || 0), 0);
+        $("meta-long").textContent = fmtMoneyFull(longValue);
+        $("meta-short").textContent = fmtMoneyFull(shortValue);
+        $("meta-total").textContent = fmtMoneyFull(longValue + shortValue);
+        $("meta-open").textContent = s.open_count + "/" + s.max_concurrent;
+        $("meta-sum-pnl").textContent = (sumUnrl >= 0 ? "+" : "") + fmtMoneyFull(sumUnrl);
+        $("meta-sum-pnl").className = classPN(sumUnrl);
+
         const pb = $("positions-body");
         if (s.positions.length === 0) {
           pb.innerHTML = '<div class="empty">No open positions.</div>';
         } else {
           let html = '<table><thead><tr>' +
-            '<th>Sym</th><th>Side</th><th>Entry</th><th>Live</th><th>SL</th>' +
-            '<th>TP1</th><th>P&L</th><th>Bars</th><th>Status</th></tr></thead><tbody>';
+            '<th>Token</th><th class="num">Size</th><th class="num">Notional</th>' +
+            '<th class="num">Avg Entry</th><th class="num">Live</th>' +
+            '<th class="num" style="padding-right:56px">PNL / ROE</th><th style="padding-left:56px">Dist. to SL</th>' +
+            '<th class="num">Bars</th><th>Status</th></tr></thead><tbody>';
           for (const p of s.positions) {
-            const sideClass = p.side === "long" ? "side-long" : "side-short";
+            const sideClass = p.side === "long" ? "" : " short";
+            const sideLbl = p.side === "long" ? "LONG" : "SHORT";
+            const sideTextClass = p.side === "long" ? "side-long" : "side-short";
             const unrlClass = classPN(p.unrealized);
+            const roe = p.notional ? (Number(p.unrealized) / Number(p.notional) * 100) : 0;
+            const slPct = Math.max(0, Math.min(100, Math.abs(p.dist_to_sl_pct || 0) * 5));
             const status = [];
-            if (p.tp1_hit) status.push('<span class="badge hit">tp1 hit</span>');
-            if (p.trail_active) status.push('<span class="badge trail">trailing</span>');
-            const pct = Math.min(100, p.bars_held / p.max_hold_bars * 100);
+            if (p.tp1_hit) status.push('<span class="badge tp1">tp1</span>');
+            if (p.tp2_hit) status.push('<span class="badge tp2">tp2</span>');
+            if (p.tp3_hit) status.push('<span class="badge tp3">tp3</span>');
+            if (p.trail_active) status.push('<span class="badge trail">trail</span>');
+            const holdPct = Math.min(100, p.bars_held / p.max_hold_bars * 100);
             html += `<tr>
-              <td><b>${p.symbol}</b></td>
-              <td class="${sideClass}">${p.side.toUpperCase()}</td>
-              <td>${fmtPrice(p.entry)}</td>
-              <td>${fmtPrice(p.live)}</td>
-              <td>${fmtPrice(p.sl)}</td>
-              <td>${p.tp1 ? fmtPrice(p.tp1) : '—'}</td>
-              <td class="${unrlClass}">${fmtMoney(p.unrealized)}</td>
-              <td>${p.bars_held}/${p.max_hold_bars}
-                <div class="progress"><div class="fill" style="width:${pct}%"></div></div>
+              <td>
+                <span class="token-bar${sideClass}"></span>
+                <span class="token-cell">
+                  <div class="sym">${p.symbol}</div>
+                  <div class="sub">${sideLbl} · <span class="${sideTextClass}">${Number(p.effective_leverage ?? s.effective_leverage).toFixed(2)}×</span> (set ${p.set_leverage ?? s.set_leverage}×)</div>
+                </span>
+              </td>
+              <td class="num">${Number(p.size).toFixed(4)}</td>
+              <td class="num">${fmtMoneyFull(p.notional)}</td>
+              <td class="num">${fmtPrice(p.entry)}</td>
+              <td class="num" data-live-price="${p.symbol}">${fmtPrice(p.live)}</td>
+              <td class="num ${unrlClass}" style="padding-right:56px">
+                <div>${fmtMoneyFull(p.unrealized)}</div>
+                <div style="font-size:10px;opacity:0.7">${(roe>=0?"+":"")}${roe.toFixed(2)}%</div>
+              </td>
+              <td style="padding-left:56px">
+                <div class="liq-bar"><div class="fill" style="width:${slPct}%"></div></div>
+                <span style="font-size:10px;color:var(--sub);margin-left:8px">${(p.dist_to_sl_pct||0).toFixed(2)}%</span>
+              </td>
+              <td class="num">${p.bars_held}/${p.max_hold_bars}
+                <div class="liq-bar" style="width:80px;margin-top:4px"><div class="fill" style="width:${holdPct}%;background:var(--blue)"></div></div>
               </td>
               <td>${status.join(' ') || '<span class="badge">active</span>'}</td>
             </tr>`;
@@ -397,29 +1703,135 @@
           pb.innerHTML = html;
         }
 
-        // Trades — pulled from vault notes (the bot writes a trade note on entry + exit)
+        // Closed trades
         const tb = $("trades-body");
-        const trades = (s.vault_recent || []).slice(0, 20);
-        $("trades-count").textContent = trades.length;
+        const trades = (s.trade_history || []).slice().reverse();
+        $("trades-total").textContent = trades.length;
+        const cum = trades.length ? trades[0].cumulative : 0;
+        $("trades-cum").textContent = (cum >= 0 ? "+" : "") + fmtMoneyFull(cum);
+        $("trades-cum").className = classPN(cum);
         if (trades.length === 0) {
-          tb.innerHTML = '<div class="empty">No trades yet.</div>';
+          tb.innerHTML = '<div class="empty">No closed trades yet.</div>';
         } else {
-          let html = '<table><thead><tr><th>When</th><th>Note</th></tr></thead><tbody>';
+          let html = '<table><thead><tr>' +
+            '<th>#</th><th>When</th><th>Token</th><th>Side</th><th>Exit</th>' +
+            '<th class="num">Price</th><th class="num">Notional</th>' +
+            '<th class="num">PNL</th><th class="num">Cumulative</th>' +
+            '</tr></thead><tbody>';
           for (const t of trades) {
-            const name = t.name || t.filename || '';
-            const when = t.date || t.mtime || '';
-            html += `<tr><td style="color:var(--muted)">${when}</td><td>${name}</td></tr>`;
+            const sideClass = t.side === "long" ? "side-long" : "side-short";
+            const pnlClass = classPN(t.pnl);
+            const cumClass = classPN(t.cumulative);
+            const reasonBadge =
+              t.exit_reason === 'tp1_partial' ? 'tp1' :
+              t.exit_reason === 'tp2_partial' ? 'tp2' :
+              t.exit_reason === 'tp3_partial' ? 'tp3' :
+              t.exit_reason === 'trail_stop' ? 'trail' :
+              t.exit_reason === 'stop_loss' ? 'sl' :
+              t.exit_reason === 'breakeven' ? 'hold' :
+              t.exit_reason === 'max_hold' ? 'hold' : '';
+            html += `<tr>
+              <td style="color:var(--muted)">${t.n}</td>
+              <td style="color:var(--sub)">${fmtTs(t.timestamp)}</td>
+              <td><b>${t.symbol}</b></td>
+              <td class="${sideClass}">${(t.side||'').toUpperCase()}</td>
+              <td><span class="badge ${reasonBadge}">${t.exit_reason || '?'}</span></td>
+              <td class="num">${fmtPrice(t.price)}</td>
+              <td class="num">${fmtMoneyFull(t.notional)}</td>
+              <td class="num ${pnlClass}">${fmtMoneyFull(t.pnl)}</td>
+              <td class="num ${cumClass}">${fmtMoneyFull(t.cumulative)}</td>
+            </tr>`;
           }
           html += '</tbody></table>';
           tb.innerHTML = html;
         }
 
-        // Vault body = most recent notes
+        // Attribution (by exit reason only)
+        renderAttr(s.attribution_exit, $('attr-exit-full'), false);
+
+        // Symbols
+        const sg = $("sym-grid");
+        $("meta-uni").textContent = s.symbols.length;
+        sg.innerHTML = s.symbols.map(sym => {
+          const dirClass = sym.direction === "long_only" ? "dir-long"
+            : sym.direction === "short_only" ? "dir-short" : "dir-both";
+          const active = sym.in_position ? " active" : "";
+          const pf = sym.backtest_pf ? `PF ${Number(sym.backtest_pf).toFixed(1)}` : '';
+          const pwin = sym.backtest_p_win != null ? `p${(Number(sym.backtest_p_win)*100).toFixed(0)}%` : '';
+          const effLev = sym.effective_leverage != null ? Number(sym.effective_leverage).toFixed(2) : '—';
+          const setLev = sym.set_leverage != null ? `${sym.set_leverage}×` : '—';
+          const entryLabel = sym.ensemble_k != null
+            ? `${sym.entry_type} K=${sym.ensemble_k}` : (sym.entry_type || '');
+          const bosLongHtml = sym.bos_long
+            ? `<span class="bos bos-up">↑ ${fmtPrice(sym.bos_long)}${
+                sym.bos_long_dist_pct != null
+                  ? ` <span class="bos-dist ${sym.bos_long_dist_pct >= 0 ? 'pos' : 'neg'}">${sym.bos_long_dist_pct > 0 ? '+' : ''}${sym.bos_long_dist_pct.toFixed(2)}%</span>`
+                  : ''
+              }</span>`
+            : '';
+          const bosShortHtml = sym.bos_short
+            ? `<span class="bos bos-dn">↓ ${fmtPrice(sym.bos_short)}${
+                sym.bos_short_dist_pct != null
+                  ? ` <span class="bos-dist ${sym.bos_short_dist_pct >= 0 ? 'pos' : 'neg'}">${sym.bos_short_dist_pct > 0 ? '+' : ''}${sym.bos_short_dist_pct.toFixed(2)}%</span>`
+                  : ''
+              }</span>`
+            : '';
+          const bosLine = (bosLongHtml || bosShortHtml)
+            ? `<div class="meta bos-row">${bosLongHtml}${bosLongHtml && bosShortHtml ? ' · ' : ''}${bosShortHtml}</div>`
+            : '';
+          // Regime badge
+          const regimeClass = sym.regime === 'trend_up' ? 'regime-up'
+            : sym.regime === 'trend_down' ? 'regime-dn'
+            : sym.regime === 'range' ? 'regime-range'
+            : 'regime-chop';
+          const regimeEmoji = sym.regime === 'trend_up' ? '🟢'
+            : sym.regime === 'trend_down' ? '🔴'
+            : sym.regime === 'range' ? '🟡' : '⚫';
+          const regimeLine = sym.regime
+            ? `<div class="meta regime-row">
+                  <span class="${regimeClass}">${regimeEmoji} ${sym.regime}</span>
+                  <span class="regime-detail">ens ${sym.ens_up}/${sym.ens_dn} · H ${sym.hurst ?? '—'} · ADX ${sym.adx ?? '—'}</span>
+               </div>`
+            : '';
+          // TP ladder: show only the rungs that are actually configured
+          const tpRungs = [];
+          if (sym.tp1_pct) tpRungs.push(`${Math.round(sym.tp1_pct*100)}%@${sym.tp1_atr}`);
+          if (sym.tp2_pct) tpRungs.push(`${Math.round(sym.tp2_pct*100)}%@${sym.tp2_atr}`);
+          if (sym.tp3_pct) tpRungs.push(`${Math.round(sym.tp3_pct*100)}%@${sym.tp3_atr}`);
+          const trailPart = (sym.trail_atr && sym.trail_atr > 0) ? ` +trail${sym.trail_atr}` : '';
+          const tpLine = tpRungs.length
+            ? `<div class="meta">TP ${tpRungs.join('/')}${trailPart}${sym.sl_atr ? ` · SL ${sym.sl_atr}×` : ''}</div>`
+            : (trailPart ? `<div class="meta">trail-only${trailPart}${sym.sl_atr ? ` · SL ${sym.sl_atr}×` : ''}</div>` : '');
+          // 1h filter: explicitly show OFF when filter is disabled
+          const filterLine = (sym.use_1h_filter === false)
+            ? `<div class="meta" style="color:var(--amber)">1h: OFF</div>`
+            : (sym.trend_filter_1h
+                ? `<div class="meta">1h: ${sym.trend_filter_1h}${sym.exit_type && sym.exit_type !== 'standard' ? ` · exit: ${sym.exit_type}` : ''}</div>`
+                : '');
+          return `<div class="sym-card${active}">
+            <div class="sym">${sym.symbol}</div>
+            <div class="price" data-live-price="${sym.symbol}">${fmtPrice(sym.price)}</div>
+            <div class="meta">
+              <span class="${dirClass}">${(sym.direction || '').replace('_only','').toUpperCase()}</span>
+              · ${entryLabel}
+            </div>
+            <div class="meta">lev ${setLev} · eff ${effLev}×</div>
+            ${tpLine}
+            ${filterLine}
+            <div class="meta"><span class="pf">${pf}</span>${pwin ? ' · <span class="pwin">' + pwin + '</span>' : ''}</div>
+            ${regimeLine}
+            ${bosLine}
+          </div>`;
+        }).join('');
+
+        // Vault
         const vb = $("vault-body");
-        if ((s.vault_recent || []).length === 0) {
+        const vault = s.vault_recent || [];
+        $("vault-count").textContent = vault.length;
+        if (vault.length === 0) {
           vb.innerHTML = '<div class="empty">No vault notes yet.</div>';
         } else {
-          vb.innerHTML = s.vault_recent.slice(0, 12).map(n =>
+          vb.innerHTML = vault.slice(0, 30).map(n =>
             `<div class="vault-note">
               <span class="ts">${(n.date || '').slice(-5)}</span>
               <span class="title">${n.name || n.filename || ''}</span>
@@ -427,33 +1839,129 @@
           ).join('');
         }
 
-        // Symbols
-        const sg = $("sym-grid");
-        $("sym-count").textContent = s.symbols.length;
-        sg.innerHTML = s.symbols.map(sym => {
-          const dirClass = sym.direction === "long_only" ? "dir-long"
-            : sym.direction === "short_only" ? "dir-short" : "dir-both";
-          const active = sym.in_position ? " active" : "";
-          const pf = sym.backtest_pf ? `PF ${Number(sym.backtest_pf).toFixed(1)}` : '';
-          return `<div class="sym-card${active}">
-            <div class="sym">${sym.symbol}</div>
-            <div class="price">${fmtPrice(sym.price)}</div>
-            <div class="meta">
-              <span class="${dirClass}">${(sym.direction || '').replace('_only','').toUpperCase()}</span>
-              · ${sym.entry_type || ''}
-            </div>
-            <div class="meta"><span class="pf">${pf}</span></div>
-          </div>`;
-        }).join('');
+        renderRisk(s);
 
-        $("footer").textContent = `refresh every 15s · ${s.symbols.length} symbols watched · paper state @ data/paper_state.json`;
+        // Flash live-price cells when they change
+        const prices = s.prices || {};
+        requestAnimationFrame(() => {
+          document.querySelectorAll('[data-live-price]').forEach(el => {
+            const sym = el.dataset.livePrice;
+            const newP = Number(prices[sym] || 0);
+            const oldP = ui.priceCache[sym];
+            if (oldP !== undefined && newP && newP !== oldP) {
+              flashCell(el, newP > oldP);
+            }
+          });
+          // Update cache after flash decisions
+          for (const [sym, px] of Object.entries(prices)) {
+            ui.priceCache[sym] = Number(px);
+          }
+        });
+
+        // ── Live price ticker ──
+        renderPriceTicker(s);
+
+        $("footer").textContent =
+          `${s.stats.total_trades} closed trades · ${s.symbols.length} symbols · live refresh 1.5s · paper state @ data/paper_state.json`;
       } catch (e) {
-        console.error("refresh failed", e);
+        console.error("render failed", e);
       }
     }
 
+    // ── Live price ticker ─────────────────────────
+    // Remembers the last mid for each symbol so we can color the dot +
+    // change-% by short-term tick direction. Seamless loop is achieved by
+    // duplicating the item list so translateX(-50%) swaps halves invisibly.
+    const _tickerLast = {};
+    const _tickerAnchor = {}; // 24h-ish anchor (first price we ever saw)
+    function renderPriceTicker(s) {
+      const track = $("price-ticker-track");
+      if (!track) return;
+      const prices = s.prices || {};
+      const syms = Object.keys(prices).filter(k => Number(prices[k]) > 0);
+      if (syms.length === 0) { track.innerHTML = ""; return; }
+
+      const items = syms.map(sym => {
+        const px = Number(prices[sym]);
+        if (!(sym in _tickerAnchor)) _tickerAnchor[sym] = px;
+        const prev = _tickerLast[sym];
+        _tickerLast[sym] = px;
+        const anchor = _tickerAnchor[sym] || px;
+        const chgPct = anchor > 0 ? ((px - anchor) / anchor * 100) : 0;
+        const dir = prev === undefined ? 0 : (px > prev ? 1 : px < prev ? -1 : 0);
+        const dirCls = dir > 0 ? "pos" : dir < 0 ? "neg" : "";
+        const chgCls = chgPct > 0 ? "pos" : chgPct < 0 ? "neg" : "";
+        const pxStr = px >= 1000 ? px.toFixed(0)
+                    : px >= 1    ? px.toFixed(3)
+                    : px >= 0.01 ? px.toFixed(4)
+                    :              px.toPrecision(3);
+        const chStr = (chgPct >= 0 ? "+" : "") + chgPct.toFixed(2) + "%";
+        return `<div class="tk-item">
+          <span class="dot ${dirCls}"></span>
+          <span class="sym">${sym}</span>
+          <span class="px">${pxStr}</span>
+          <span class="ch ${chgCls}">${chStr}</span>
+        </div>`;
+      }).join("");
+
+      // Two identical halves → CSS `translateX(-50%)` loops seamlessly.
+      track.innerHTML = items + items;
+    }
+
+    // Alloc-bar hover tooltip — read cached $ / % off the segment dataset.
+    (function wireAllocTip() {
+      const tip = $("alloc-tip");
+      const name = $("alloc-tip-name");
+      const val = $("alloc-tip-val");
+      const pct = $("alloc-tip-pct");
+      const sw = $("alloc-tip-sw");
+      ["alloc-perps", "alloc-idle"].forEach(id => {
+        const seg = $(id);
+        if (!seg) return;
+        seg.addEventListener("mouseenter", () => {
+          const kind = seg.dataset.kind;
+          name.textContent = kind === "perps" ? "Perps" : "Idle";
+          sw.className = "sw " + kind;
+          const dollars = Number(seg.dataset.val || 0);
+          val.textContent = fmtMoneyFull(dollars);
+          pct.textContent = (Number(seg.dataset.pct || 0)).toFixed(2) + "%";
+          tip.classList.add("visible");
+        });
+        seg.addEventListener("mousemove", (e) => {
+          // Position tooltip above cursor, clamped to viewport.
+          const margin = 14;
+          const tw = tip.offsetWidth || 180;
+          const th = tip.offsetHeight || 60;
+          let x = e.clientX + margin;
+          let y = e.clientY - th - margin;
+          if (x + tw > window.innerWidth - 8) x = window.innerWidth - tw - 8;
+          if (y < 8) y = e.clientY + margin;
+          tip.style.left = x + "px";
+          tip.style.top = y + "px";
+        });
+        seg.addEventListener("mouseleave", () => {
+          tip.classList.remove("visible");
+        });
+      });
+    })();
+
     refresh();
-    setInterval(refresh, 5000);
+    // Use a Worker-backed timer so polls fire at a steady 1.5s cadence even
+    // when this tab is in the background (Chrome/Safari throttle setInterval
+    // to ≥1 sec on hidden tabs, which produces uneven chart spacing).
+    (() => {
+      try {
+        const workerBlob = new Blob(
+          ['setInterval(()=>postMessage(1), 1500);'],
+          { type: 'application/javascript' }
+        );
+        const w = new Worker(URL.createObjectURL(workerBlob));
+        w.onmessage = () => refresh();
+      } catch (e) {
+        // Worker unavailable (e.g. strict CSP) — fall back to setInterval
+        setInterval(refresh, 1500);
+      }
+    })();
   </script>
 </body>
 </html>

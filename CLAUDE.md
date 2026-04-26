@@ -3,6 +3,14 @@
 Replaces the commodities-bot + crypto-bot momentum strategies.
 Based on 58bro.eth + nervousdegen.eth wallet pattern research (2026-04-16).
 
+## Wiki — read this first
+
+`docs/wiki/` is the canonical, maintained knowledge base (Karpathy-style LLM wiki).
+
+- Start at [`docs/wiki/index.md`](docs/wiki/index.md) to find the right page.
+- Conventions + ingest/query/lint workflows are in [`docs/wiki/WIKI.md`](docs/wiki/WIKI.md).
+- When this file and the wiki disagree, **the wiki wins** — its pages carry `Last verified` dates; the sections below this one may have drifted.
+
 ## What it does
 
 - 5m entry precision, multi-day holds (1–5 days max)
@@ -26,19 +34,20 @@ The 40× is capital efficiency, not risk. The real risk level is `margin_pct × 
 
 ## Symbol universe
 
-All 11 symbols the backtest covered. The risk gate's `max_concurrent_positions=2` enforces 58bro-style concurrency discipline — many candidates, tight concurrency.
+Whatever has an active config in `config/deployed/whale_*.json` is in the universe. The risk gate's `max_concurrent_positions=4` enforces 58bro-style concurrency discipline — many candidates, tight concurrency.
 
-- `xyz:SILVER`, `BTC`, `ETH`, `HYPE`, `ZEC`, `XRP`, `kPEPE`, `FARTCOIN`, `BIO`, `ORDI`, `LIT`
+Currently deployed (as of 2026-04-24): `xyz:SILVER`, `BTC`, `ETH`, `HYPE`, `XRP`, `ZEC`, `ENA`, `SOL`, `LIT`, `FARTCOIN`, `ARB`, `INJ`, `LINK`, `OP`, `PENDLE`, `TIA`. Retired configs live in `config/deployed/_retired/`.
 
 ## Risk gate
 
-Deterministic rules, never AI:
+Deterministic rules, never AI. The values below are the live-ready target. **Paper mode currently runs with global halts disabled** to collect data through losing stretches — see [`docs/wiki/concepts/risk-gate.md`](docs/wiki/concepts/risk-gate.md) for the live table and the pre-live restore checklist.
 
-- Max concurrent positions: **2**
-- Max daily loss: 5% → kill switch
-- Max account drawdown from peak: 15% → halt
-- Max consecutive losses: 5 → halt
-- HyperLiquid blended commission: 0.006% per side
+- Max concurrent positions: **4**
+- Max daily loss: 5% → kill switch *(paper: disabled)*
+- Max account drawdown from peak: 15% → halt *(paper: disabled)*
+- Max consecutive losses: 5 → halt *(paper: disabled)*
+- Per-symbol 24h loss cap: 2% → symbol paused 24h *(enabled in both paper and live)*
+- HyperLiquid commission: 0.030% per side (HL tier 0 crypto perp, 50/50 maker/taker realistic estimate — was 0.006% until 2026-04-20, that was an institutional blend + HIP-3 discount assumption that no longer applies since SILVER/ETH were demoted and the bot is now 100% native crypto perps)
 
 ## Architecture
 

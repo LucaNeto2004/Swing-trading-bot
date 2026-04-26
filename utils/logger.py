@@ -34,6 +34,19 @@ class ColorFormatter(logging.Formatter):
         msg = msg.replace("KILL SWITCH", f"\033[91m\033[1mKILL SWITCH{RESET}")
         msg = msg.replace("[PAPER]", f"\033[33m[PAPER]{RESET}")
         msg = msg.replace("[LIVE]", f"\033[91m\033[1m[LIVE]{RESET}")
+        # TP tiers — bright green bold (profit)
+        msg = msg.replace("TP1", f"\033[92m\033[1mTP1{RESET}")
+        msg = msg.replace("TP2", f"\033[92m\033[1mTP2{RESET}")
+        msg = msg.replace("TP3", f"\033[92m\033[1mTP3{RESET}")
+        # Exit reasons — red for stop, cyan for trail, yellow for time-out
+        msg = msg.replace("stop_loss", f"\033[91m\033[1mstop_loss{RESET}")
+        msg = msg.replace("trail_stop", f"\033[96m\033[1mtrail_stop{RESET}")
+        msg = msg.replace("TRAIL ARMED", f"\033[96m\033[1mTRAIL ARMED{RESET}")
+        msg = msg.replace("TRAIL TIGHTEN", f"\033[96mTRAIL TIGHTEN{RESET}")
+        msg = msg.replace("max_hold", f"\033[93mmax_hold{RESET}")
+        # Skipped / skipping — dim gray
+        msg = msg.replace("skipped", f"{DIM}skipped{RESET}")
+        msg = msg.replace("skipping", f"{DIM}skipping{RESET}")
         record.msg_colored = msg
         return f"{record.asctime_dim} | {record.levelname_color} | {record.name_dim} | {record.msg_colored}"
 

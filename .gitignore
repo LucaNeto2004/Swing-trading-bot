@@ -6,6 +6,9 @@ __pycache__/
 .env.*
 !.env.example
 data/*.json
+data/*.bak_*
+data/charts/
+data/whale_snapshots/
 !data/.gitkeep
 logs/
 *.log
