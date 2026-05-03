@@ -69,3 +69,10 @@ Types: `decision`, `ingest`, `deploy`, `incident`, `lint`.
 2026-04-26 — ingest: Per-strategy stats analysis (51 trades) — pullback_in_regime PF 5.46 / +$916 / Sharpe 0.40 (HYPE+ZEC) vs ensemble_regime PF 0.86 / −$119 / Sharpe −0.04 (7 syms). Same WR (~62%) but inverted avg-win/avg-loss ratios (3:1 vs 1:1.87). Filed as seed #6 (pullback generalization).
 
 2026-04-26 — ingest: Baseline snapshot saved for the 4 filter swaps (BTC/HYPE/ETH/ARB) at `decisions/2026-04-26_filter_swap_baseline_snapshot.md`. **Action queued: compare predicted vs realized on 2026-04-30 (Thursday).** Pre-change configs preserved in the doc for clean revert if needed.
+
+2026-04-27 — ingest: Sunday EOD review (auto-journal `logs/daily/2026-04-26.md` fired clean at 00:00 UTC). Weekend total: **−$341.58 / 18 trades** (Sat −$108 / 3, Sun −$234 / 15). Monday already **+$335 / 10 trades** (early UTC) — recovery in progress. Validates seed #2 (weekend regime). Key Sunday signals:
+  - **BTC −$113 SL at 08:22 UTC, FE=0.33 ATR** — the SJM-vetoable failure mode, exactly. Loss happened ~12h BEFORE the SJM swap deployed (~20:30 UTC). Validates the BTC change.
+  - **OP −$65 across 2 SL hits**, both FE < 1 ATR — same vetoable pattern. OP is the one symbol with broken HL 1h fetch (can't apply a filter yet). Bumps the OP fetch fix in priority.
+  - **LINK −$70 at 17:00 UTC** — last loss before bench was applied. Vindicates the 04-26 cohort retirement.
+  - **Runner-stop giving back gains**: ZEC −$27 (FE=7.57 ATR), ENA −$9 short (FE=13.98 ATR). Two trades that ran 7×–14× ATR favorable then trailed back to a runner_stop loss. Possible runner-trail tuning issue — note for later, not actioning now (n=2).
+  - **TIA "kept against OOS verdict" still in observation**: Sun −$37 (choch_exit) → Mon +$15 (tp1_partial). No verdict yet.

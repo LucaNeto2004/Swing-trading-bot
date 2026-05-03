@@ -28,5 +28,5 @@
   "backtest_p_win": 0.75,
   "backtest_trades": 22,
   "backtest_run_date": "2026-04-22",
-  "note": "2026-04-22: NEW — strong near-miss (P(win) 0.75). Ensemble K=3 + BOS. 41d: $+388 / OOS $+334 / PF 2.41 / 3/4 quartiles. HL max leverage only 5x."
+  "note": "2026-04-29: REVERTED from 2026-04-28 re-election. Reason: full_history_audit showed today's NEW config (K=3+structure+sl1.5+TP_ladder) had IS PF 5.14 but OOS PF 0.65 / OOS $-16 — classic overfit revealed by 24h data drift. OLD config (this one — K=3+BOS+no_filter+sl=2.0+TP1_only) shows current OOS $+190 / PF 4.45 — far better. Lesson: gate-passing margins matter — yesterday's NEW barely passed (OOS n=10 at threshold) and didn't survive forward walk. | 2026-04-22 (original): NEW — strong near-miss (P(win) 0.75). Ensemble K=3 + BOS. 41d: $+388 / OOS $+334 / PF 2.41 / 3/4 quartiles. HL max leverage only 5x."
 }

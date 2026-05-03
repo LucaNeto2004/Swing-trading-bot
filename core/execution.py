@@ -30,7 +30,9 @@ STRUCTURAL_LOOKBACK_BARS = 10  # ~50m on 5m — recent swing window for runner S
 _BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PAPER_STATE_FILE = os.path.join(_BASE_DIR, "data", "paper_state.json")
 
-_SHARED_DIR = os.path.abspath(os.path.join(_BASE_DIR, "..", "shared"))
+_SHARED_DIR = os.path.join(_BASE_DIR, "shared")
+if not os.path.isdir(_SHARED_DIR):
+    _SHARED_DIR = os.path.abspath(os.path.join(_BASE_DIR, "..", "shared"))
 if _SHARED_DIR not in _sys.path:
     _sys.path.insert(0, _SHARED_DIR)
 try:

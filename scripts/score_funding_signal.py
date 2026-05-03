@@ -14,7 +14,11 @@ import sys
 from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "shared")))
+_bot_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_shared = os.path.join(_bot_root, "shared")
+if not os.path.isdir(_shared):
+    _shared = os.path.abspath(os.path.join(_bot_root, "..", "shared"))
+sys.path.insert(0, _shared)
 
 import numpy as np
 import pandas as pd

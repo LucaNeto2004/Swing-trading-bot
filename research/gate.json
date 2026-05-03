@@ -1,0 +1,29 @@
+{
+  "_meta": {
+    "version": 1,
+    "created": "2026-04-29",
+    "purpose": "Single source of truth for OOS-gate criteria. All validation scripts read these constants instead of hardcoding. Bumping version forces a re-validation of all deployed configs.",
+    "reasoning": "Yesterday's TIA case: deployed at OOS n=10 / PF 3.49 (just-passed old gate). 24h later: OOS n=9 / PF 0.65. Single day of data drift broke it. Tightening every threshold by ~50% to absorb that drift before it reaches deployment."
+  },
+  "deployment_gate": {
+    "min_oos_n_trades": 15,
+    "min_oos_pf": 1.5,
+    "min_oos_pnl_dollars": 0.01,
+    "max_neg_quartiles": 0,
+    "min_pf_above_random": 0.6,
+    "min_sensitivity_pf": 1.2,
+    "_comments": {
+      "min_oos_n_trades": "was 10 in old gate — bumped to 15 to give buffer for ~3% daily window drift",
+      "min_oos_pf": "was 1.2 — bumped to 1.5 because PFs near 1.2 swing into <1.0 with one bad week",
+      "max_neg_quartiles": "was 1 — tightened to 0 because any negative quartile signals regime fragility",
+      "min_pf_above_random": "was 0.3 — bumped to 0.6 because sub-0.3 differentials are noise",
+      "min_sensitivity_pf": "was 1.0 — bumped to 1.2 to ensure params aren't on a knife-edge"
+    }
+  },
+  "shadow_paper_required_days": 14,
+  "shadow_paper_min_setups": 5,
+  "config_freeze_days_after_change": 14,
+  "rolling_validation_windows": 5,
+  "rolling_window_days": 30,
+  "rolling_window_step_days": 2
+}

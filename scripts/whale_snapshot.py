@@ -12,7 +12,10 @@ from datetime import datetime, timezone
 
 _BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, _BASE)
-sys.path.insert(0, os.path.abspath(os.path.join(_BASE, "..", "shared")))
+_SHARED = os.path.join(_BASE, "shared")
+if not os.path.isdir(_SHARED):
+    _SHARED = os.path.abspath(os.path.join(_BASE, "..", "shared"))
+sys.path.insert(0, _SHARED)
 
 import hl_client  # noqa: E402
 from research.whale_watcher import WHALE_WATCHLIST  # noqa: E402

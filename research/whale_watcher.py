@@ -25,7 +25,9 @@ from dotenv import load_dotenv
 
 _BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 load_dotenv(os.path.join(_BASE_DIR, ".env"))
-_SHARED_DIR = os.path.abspath(os.path.join(_BASE_DIR, "..", "shared"))
+_SHARED_DIR = os.path.join(_BASE_DIR, "shared")
+if not os.path.isdir(_SHARED_DIR):
+    _SHARED_DIR = os.path.abspath(os.path.join(_BASE_DIR, "..", "shared"))
 if _SHARED_DIR not in _sys.path:
     _sys.path.insert(0, _SHARED_DIR)
 if _BASE_DIR not in _sys.path:

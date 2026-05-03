@@ -2,8 +2,8 @@
 function LowerPanel({ tab, setTab, positions, fills, symbolsAttrib, newFillFlash }) {
   const tabs = [
     { id: 'perps',  label: 'Perps',      count: positions.length },
-    { id: 'fills',  label: 'Fills',      count: 36 },
-    { id: 'symbols',label: 'Symbols',    count: 13 },
+    { id: 'fills',  label: 'Fills',      count: fills.length },
+    { id: 'symbols',label: 'Symbols',    count: symbolsAttrib.length },
     { id: 'attrib', label: 'Attribution',count: null },
     { id: 'vault',  label: 'Vault',      count: null },
     { id: 'risk',   label: 'Risk',       count: null },

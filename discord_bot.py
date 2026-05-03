@@ -84,9 +84,9 @@ def _cmd_signals() -> str:
     import subprocess
     try:
         out = subprocess.check_output(
-            ["/Users/lucaneto/Trading/swing-trading-bot/.venv/bin/python",
+            ["/Users/lucaneto/swing-trading-bot/.venv/bin/python",
              "/tmp/signal_proximity.py"],
-            cwd="/Users/lucaneto/Trading/swing-trading-bot",
+            cwd="/Users/lucaneto/swing-trading-bot",
             stderr=subprocess.STDOUT,
             timeout=45,
         ).decode()

@@ -73,6 +73,12 @@ INSTRUMENTS = {
     # entirely by the first-half slice. Recent ETH regime doesn't fit our
     # entry setup. Keep config file on disk for future re-election.
     # "ETH":       Instrument("ETH", "Ethereum", 0.1, 0.0001, 25),
+    # HYPE 2026-04-29 — KEPT ACTIVE BY USER OVERRIDE despite framework verdict
+    # of FAIL. Forward-walk: 0/5 windows pass, PF mean 0.78 [0.53, 1.08].
+    # 660-config intensive grid found 0 configs passing strict gate v1. Live
+    # +$208 cumulative argues for keeping; framework argues for pausing. User
+    # call: keep. Re-audit 2026-05-13 — if framework prediction holds (live
+    # turns negative), pause. If live keeps winning, recalibrate the gate.
     "HYPE":      Instrument("HYPE", "HyperLiquid", 0.001, 0.01, 10),
     "ZEC":       Instrument("ZEC", "Zcash", 0.01, 0.01, 10),
     "XRP":       Instrument("XRP", "XRP", 0.0001, 1.0, 20),
@@ -86,7 +92,7 @@ INSTRUMENTS = {
     # Worst: sjm/4h (current deployed) at −$242 / PF 0.70 / 1/4 quartiles. Symbol
     # has no working variant — structurally broken like LIT. Keep config on disk
     # for future re-election after entry_type or sizing redesign.
-    # "FARTCOIN":  Instrument("FARTCOIN", "Fartcoin", 0.00001, 1.0, 10),
+    "FARTCOIN":  Instrument("FARTCOIN", "Fartcoin", 0.00001, 1.0, 10),
     # LIT disabled 2026-04-21 — research/lit_verdict.py showed current deployed
     # config (long_only, hma_slope, no 4h) fails scorecard: 41d PF 0.81, P&L −$148,
     # 1/4 quartiles positive. Filter-accuracy scorecard showed LIT UP calls are
@@ -110,13 +116,19 @@ INSTRUMENTS = {
     # expansion test (P(win) 0.72-0.80 on 41d, OOS+). Leverages verified against
     # HL /info meta endpoint 2026-04-22. Sizes use HL's szDecimals.
     "ETH":       Instrument("ETH", "Ethereum", 0.0001, 0.01, 25),
-    "ARB":       Instrument("ARB", "Arbitrum", 0.1, 0.001, 10),
+    # ARB RETIRED 2026-04-28 — backtest OOS only +$23 (gate-marginal); live
+    # -$47 confirmed weak edge. Intensive grid (660 configs) found no
+    # passing alternative. Config in _retired/.
+    # "ARB":       Instrument("ARB", "Arbitrum", 0.1, 0.001, 10),
     # LINK RETIRED 2026-04-26 — failed cohort OOS (IS PF 7.05 → OOS PF 0.62,
     # n=8 underpowered, OOS −$19). Classic IS-overfit. Config in _retired/.
     # "LINK":      Instrument("LINK", "Chainlink", 0.1, 0.001, 10),
     "PENDLE":    Instrument("PENDLE", "Pendle", 1.0, 0.001, 5),
     "TIA":       Instrument("TIA", "Celestia", 0.1, 0.001, 5),
-    "OP":        Instrument("OP", "Optimism", 0.1, 0.001, 5),
+    # OP RETIRED 2026-04-28 — OOS +$99 thin, 4/6 live stops both directions,
+    # choch_exits whipsawing. 660-config intensive grid found no passing
+    # alternative. Config in _retired/.
+    # "OP":        Instrument("OP", "Optimism", 0.1, 0.001, 5),
     # INJ RETIRED 2026-04-26 — failed cohort OOS (IS PF 3.97 → OOS n=0,
     # elected config never triggers on recent data). Config in _retired/.
     # "INJ":       Instrument("INJ", "Injective", 0.1, 0.01, 5),
@@ -189,11 +201,18 @@ class TimeStopConfig:
 
     Conservative defaults — gate is narrow so well-behaved trades don't fire.
     """
-    enabled: bool = True
-    stale_bars: int = 48                 # 4h on 5m — bars elapsed before check fires
-    min_mfe_atr: float = 0.3             # if MFE < this, considered stale
-    skip_after_tp1: bool = True          # don't kill a trade that's already reached TP1
-    skip_after_pyramid: bool = True      # don't kill a trade that pyramided (confirmed winner)
+    # 2026-04-29: REVERTED to disabled. Backtest (mfe_scratch_grid.py against
+    # current 8-symbol universe) showed every variant of time-stop tested is
+    # NEGATIVE vs baseline (no time-stop): aggregate −$251 to −$735 across
+    # stale ∈ {4,6,8,12,16} × mfe ∈ {0.3,0.5,0.8}. The 28%-of-losers-have-low-MFE
+    # autopsy finding is real on live (11 trades, $993) but doesn't survive
+    # backtest validation on the broader universe. Per `feedback_no_napkin_sims`,
+    # honoring the OOS-validated baseline over post-hoc live fitting.
+    enabled: bool = False
+    stale_bars: int = 48                 # original — kept as documentation, gate is OFF
+    min_mfe_atr: float = 0.3             # original — kept as documentation, gate is OFF
+    skip_after_tp1: bool = True
+    skip_after_pyramid: bool = True
 
 
 @dataclass

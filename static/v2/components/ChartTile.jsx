@@ -299,14 +299,27 @@ function ChartTile({ meta, onExpand, big, interval = '5m' }) {
         </defs>
         <rect x={padL} y={padT} width={iw} height={priceH} fill={`url(#grid-${meta.sym})`}/>
 
-        {/* Regime ribbon between price pane and RSI pane */}
+        {/* Regime ribbon — multi-timeframe confluence (5 states).
+            strong_up   = all 3 timeframes agree up    → deep green
+            trans_up    = transitioning up              → amber/yellow
+            chop        = mixed/no edge                → faded gray
+            trans_dn    = transitioning down            → orange
+            strong_dn   = all 3 agree down             → deep red
+            Legacy 'up'/'dn'/'neutral' kept for back-compat with old chart_server. */}
         {regimeBars.map((r, i) => {
           const nxt = regimeBars[i + 1];
           const x0 = xt(r.time);
           const x1 = nxt ? xt(nxt.time) : padL + iw;
-          const col = r.state === 'up' ? 'rgba(34,197,94,0.55)'
-                    : r.state === 'dn' ? 'rgba(239,68,68,0.55)'
-                    : 'rgba(107,114,128,0.18)';
+          const col = ({
+            'strong_up': 'rgba(22,163,74,0.65)',
+            'trans_up':  'rgba(251,191,36,0.55)',
+            'chop':      'rgba(107,114,128,0.20)',
+            'trans_dn':  'rgba(249,115,22,0.55)',
+            'strong_dn': 'rgba(220,38,38,0.65)',
+            'up':        'rgba(34,197,94,0.55)',
+            'dn':        'rgba(239,68,68,0.55)',
+            'neutral':   'rgba(107,114,128,0.18)',
+          })[r.state] || 'rgba(107,114,128,0.18)';
           return <rect key={i} x={x0} y={ribbonY0} width={Math.max(0.5, x1 - x0)} height={ribbonH} fill={col}/>;
         })}
 

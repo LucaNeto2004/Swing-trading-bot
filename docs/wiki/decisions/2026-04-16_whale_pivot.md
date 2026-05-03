@@ -20,7 +20,7 @@ Momentum bots had diverged from Pine-script parity (heavy pyramiding, gates rela
 
 ## What changed
 
-- **Repo**: new `/Users/lucaneto/Trading/swing-trading-bot/` — fresh tree, shared modules reused from `../shared/` (`hl_client.py`, `vault_writer.py`, `reporting.py`).
+- **Repo**: new `/Users/lucaneto/swing-trading-bot/` — fresh tree, shared modules reused from `../shared/` (`hl_client.py`, `vault_writer.py`, `reporting.py`).
 - **Strategy**: `strategies/whale_swing.py` — four entry types (`rsi_bounce`, `bb_touch`, `ema_bounce`, `swing_pivot`). Partial TP ladder (TP1/TP2/TP3 scale-out), SL-to-BE after TP1, max_hold cap (1/3/5 days).
 - **Universe**: 11 symbols seed (SILVER, BTC, ETH, HYPE, ZEC, XRP, kPEPE, FARTCOIN, BIO, ORDI, LIT). Grown since (ARB, ENA, INJ, LINK, OP, PENDLE, SOL, TIA deployed). Verify against `config/deployed/`.
 - **Sizing**: `margin_pct=0.15 × set_leverage=40 = 6× effective`. See [sizing](../concepts/sizing.md).

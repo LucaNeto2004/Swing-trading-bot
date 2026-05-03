@@ -35,7 +35,9 @@ _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PAPER_STATE_FILE = os.path.join(_BASE_DIR, "data", "paper_state.json")
 RISK_STATE_FILE = os.path.join(_BASE_DIR, "data", "risk_state.json")
 
-_SHARED_DIR = os.path.abspath(os.path.join(_BASE_DIR, "..", "shared"))
+_SHARED_DIR = os.path.join(_BASE_DIR, "shared")
+if not os.path.isdir(_SHARED_DIR):
+    _SHARED_DIR = os.path.abspath(os.path.join(_BASE_DIR, "..", "shared"))
 if _SHARED_DIR not in _sys.path:
     _sys.path.insert(0, _SHARED_DIR)
 try:
@@ -343,8 +345,19 @@ def _parse_ts(ts: Any) -> Optional[datetime]:
             return None
 
 
-def _compute_derived(trade_history: list[dict], starting_balance: float) -> dict:
-    """Equity curve, daily P&L series, attribution tables, aggregate stats."""
+def _compute_derived(
+    trade_history: list[dict],
+    starting_balance: float,
+    active_symbols: Optional[set] = None,
+) -> dict:
+    """Equity curve, daily P&L series, attribution tables, aggregate stats.
+
+    ``active_symbols`` (optional) — when provided, the attribution_symbol
+    table is filtered to only include symbols in this set. Equity curve,
+    daily series, and aggregate stats stay full-history (they describe
+    overall account performance regardless of which symbols are still
+    rotating). Use to hide retired symbols from per-symbol UI panels.
+    """
     # Sort chronologically (entries may be unordered in JSON)
     trades = sorted(
         (t for t in trade_history if t.get("pnl") is not None),
@@ -428,10 +441,14 @@ def _compute_derived(trade_history: list[dict], starting_balance: float) -> dict
         "worst_trade": round(min(losses), 2) if losses else 0.0,
     }
 
+    attrib_sym = _bucket("symbol")
+    if active_symbols is not None:
+        attrib_sym = [r for r in attrib_sym if r["key"] in active_symbols]
+
     return {
         "equity_curve": equity,
         "daily_pnl_series": daily_series,
-        "attribution_symbol": _bucket("symbol"),
+        "attribution_symbol": attrib_sym,
         "attribution_exit": _bucket("exit_reason"),
         "stats": stats,
     }
@@ -588,12 +605,25 @@ def refresher():
                 except Exception as e:
                     log.debug(f"vault recent failed: {e}")
 
-            derived = _compute_derived(trade_history_raw, starting)
+            # CRITICAL: equity_curve / daily_series / total_pnl must use the
+            # FULL trade history (including retired symbols' losses) so the
+            # chart baseline matches actual balance. Filtering at the input
+            # would build a counterfactual trajectory (what balance would
+            # have been if we'd never traded retired symbols) — that breaks
+            # the 24h chart, since the baseline doesn't match real balance.
+            #
+            # Per-symbol attribution IS filtered via `active_symbols`. The
+            # visible trade table below ALSO filters via `deployed_syms` —
+            # but only AFTER equity_curve has been built from full data.
+            deployed_syms = set(deployed.keys())
+            derived = _compute_derived(trade_history_raw, starting, active_symbols=deployed_syms)
+            trade_history_filtered = [t for t in trade_history_raw
+                                      if t.get("symbol") in deployed_syms]
 
             trade_rows = []
             cumulative = 0.0
             sorted_trades = sorted(
-                trade_history_raw,
+                trade_history_filtered,
                 key=lambda t: _parse_ts(t.get("timestamp")) or datetime.min,
             )
             for i, t in enumerate(sorted_trades, 1):

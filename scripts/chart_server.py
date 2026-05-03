@@ -70,6 +70,94 @@ def _regime_arrays(filter_variant: str, df_5m, df_1h):
     return trend_lookup_1h(df_5m, df_1h)
 
 
+def _fast_regime_5m(df_5m):
+    """Fast regime per 5m bar — EMA9 vs EMA21 + slope check.
+    Returns (up_arr, dn_arr) — fast, can flip every 1-2 bars in chop."""
+    import numpy as np
+    if df_5m is None or df_5m.empty or 'ema_9' not in df_5m.columns:
+        return np.zeros(len(df_5m), dtype=bool), np.zeros(len(df_5m), dtype=bool)
+    e9 = df_5m['ema_9'].to_numpy(dtype=float)
+    e21 = df_5m['ema_21'].to_numpy(dtype=float)
+    # Slope of ema_9 over last 3 bars
+    slope9 = np.zeros_like(e9)
+    slope9[3:] = (e9[3:] - e9[:-3]) / np.where(e9[:-3] != 0, e9[:-3], 1.0)
+    up = (e9 > e21) & (slope9 > 0)
+    dn = (e9 < e21) & (slope9 < 0)
+    return up, dn
+
+
+def _medium_regime_5m(df_5m):
+    """Medium regime per 5m bar — EMA21 vs EMA50 + slope check.
+    Slower than fast, faster than 1h. ~30-60 min lag."""
+    import numpy as np
+    if df_5m is None or df_5m.empty or 'ema_21' not in df_5m.columns:
+        return np.zeros(len(df_5m), dtype=bool), np.zeros(len(df_5m), dtype=bool)
+    e21 = df_5m['ema_21'].to_numpy(dtype=float)
+    e50 = df_5m['ema_50'].to_numpy(dtype=float)
+    slope21 = np.zeros_like(e21)
+    slope21[6:] = (e21[6:] - e21[:-6]) / np.where(e21[:-6] != 0, e21[:-6], 1.0)
+    up = (e21 > e50) & (slope21 > 0)
+    dn = (e21 < e50) & (slope21 < 0)
+    return up, dn
+
+
+def _confluence_regime(df_5m, df_1h, filter_variant: str):
+    """Multi-timeframe confluence — combine fast (5m EMA9/21), medium (5m EMA21/50),
+    slow (1h filter variant). Returns per-5m-bar state ∈
+    {'strong_up','trans_up','chop','trans_dn','strong_dn'}.
+
+    Logic:
+      score = (fast_up - fast_dn) + (med_up - med_dn) + (slow_up - slow_dn)
+      score range [-3, +3]
+        +3 = all agree up   → strong_up
+        +2 = 2 up, 1 neutral → strong_up (still high confidence)
+        +1 = 1 up, others neutral OR 2 up + 1 dn → trans_up (transitioning)
+         0 = balanced → chop
+        -1 = trans_dn
+        -2 = strong_dn
+        -3 = strong_dn
+    """
+    import numpy as np
+    fast_up, fast_dn = _fast_regime_5m(df_5m)
+    med_up, med_dn = _medium_regime_5m(df_5m)
+    slow_up, slow_dn = _regime_arrays(filter_variant, df_5m, df_1h)
+    n = len(df_5m)
+    # Coerce slow arrays (may be from 1h-aligned-to-5m) to length n
+    if len(slow_up) != n:
+        # Pad or truncate
+        slow_up = np.resize(np.asarray(slow_up, dtype=bool), n)
+        slow_dn = np.resize(np.asarray(slow_dn, dtype=bool), n)
+    score = (fast_up.astype(int) - fast_dn.astype(int)
+             + med_up.astype(int) - med_dn.astype(int)
+             + slow_up.astype(int) - slow_dn.astype(int))
+    states = []
+    for s in score:
+        if s >= 2:    states.append("strong_up")
+        elif s == 1:  states.append("trans_up")
+        elif s == 0:  states.append("chop")
+        elif s == -1: states.append("trans_dn")
+        else:         states.append("strong_dn")
+    return states
+
+
+def _confluence_segments(ts, states):
+    """Collapse 5-state confluence into (start_ts, end_ts, state) segments.
+    states ∈ {'strong_up','trans_up','chop','trans_dn','strong_dn'}."""
+    n = len(states)
+    if n == 0:
+        return []
+    segs = []
+    cur = states[0]
+    start = 0
+    for i in range(1, n):
+        if states[i] != cur:
+            segs.append((ts.iloc[start], ts.iloc[i], cur))
+            cur = states[i]
+            start = i
+    segs.append((ts.iloc[start], ts.iloc[n - 1], cur))
+    return segs
+
+
 def _regime_segments(ts, up_arr, dn_arr):
     """Collapse per-bar regime into (start_ts, end_ts, state) tuples.
     state ∈ {'up','dn','neutral'}."""
@@ -162,8 +250,11 @@ def _build_plotly_figure(symbol: str, interval: str = "5m", bars: int = CHART_BA
         raw_1h = fetch_candles(symbol, "1h", 200)
         if not raw_1h.empty:
             df_1h = add_features(raw_1h)
-            up_arr, dn_arr = _regime_arrays(filter_variant, df, df_1h)
-            regime_segs = _regime_segments(df["timestamp"], up_arr, dn_arr)
+            # 2026-04-29: ribbon now uses 5-state confluence (fast 5m EMA9/21
+            # + medium 5m EMA21/50 + slow 1h filter). Replaces single-1h-state
+            # ribbon that lagged 1-2 hours behind price.
+            confluence_states = _confluence_regime(df, df_1h, filter_variant)
+            regime_segs = _confluence_segments(df["timestamp"], confluence_states)
             pivot_highs, pivot_lows = _pivots_on_1h(df_1h, lookback=3)
             # "Most recent confirmed pivot" — what BOS would break.
             # Filter to pivots confirmed BEFORE the last visible 5m bar
@@ -268,8 +359,22 @@ def _build_plotly_figure(symbol: str, interval: str = "5m", bars: int = CHART_BA
     # Regime ribbon — thin band in the gap between price pane (yaxis starts
     # at 0.26) and RSI pane (yaxis2 ends at 0.22). Fits entirely inside the
     # [0.22, 0.26] gap so candles are never clipped. Green=up, red=dn.
-    _RIBBON = {"up": "rgba(34,197,94,0.55)", "dn": "rgba(239,68,68,0.55)",
-               "neutral": "rgba(107,114,128,0.15)"}
+    # 5-state confluence colors — strong/transition/chop. Plotly chart still
+    # accepts 3-state legacy keys ('up'/'dn'/'neutral') for back-compat;
+    # confluence states (strong_up, trans_up, chop, trans_dn, strong_dn)
+    # come from the new _confluence_regime classifier on the API path. The
+    # plotly interactive chart uses regime_segs (3-state legacy) for its
+    # internal ribbon — leaving as-is. The v2 dashboard reads regime_per_bar
+    # (5-state confluence) via /api/data/<sym>.
+    _RIBBON = {
+        "up": "rgba(34,197,94,0.55)", "dn": "rgba(239,68,68,0.55)",
+        "neutral": "rgba(107,114,128,0.15)",
+        "strong_up":   "rgba(22,163,74,0.65)",   # deep green
+        "trans_up":    "rgba(251,191,36,0.55)",  # amber/yellow — early signal
+        "chop":        "rgba(107,114,128,0.20)", # faded gray
+        "trans_dn":    "rgba(249,115,22,0.55)",  # orange — early down
+        "strong_dn":   "rgba(220,38,38,0.65)",   # deep red
+    }
     for seg_start, seg_end, state in regime_segs:
         shapes.append(dict(
             type="rect", xref="x", yref="paper",
@@ -718,15 +823,15 @@ def _build_chart_data(symbol: str, interval: str = "5m", bars: int = CHART_BARS)
                     filter_dir = "dn"
                 else:
                     filter_dir = "neutral"
-            # Per-bar regime for the ribbon histogram
+            # 2026-04-29: Multi-timeframe confluence regime — replaces the
+            # single 1h-filter-only state. Combines fast (5m EMA9/21), medium
+            # (5m EMA21/50), and slow (1h filter). 5 states, designed to mark
+            # transitions explicitly so the strategy's premature K-transition
+            # entries are visible on the chart as 'trans_up' (yellow), not
+            # mistakenly green.
+            confluence = _confluence_regime(df, df_1h, filter_variant)
             for j, t in enumerate(ts_s):
-                if up_arr[j] and not dn_arr[j]:
-                    state = "up"
-                elif dn_arr[j] and not up_arr[j]:
-                    state = "dn"
-                else:
-                    state = "neutral"
-                regime_per_bar.append({"time": t, "state": state})
+                regime_per_bar.append({"time": t, "state": confluence[j]})
             p_h, p_l = _pivots_on_1h(df_1h, lookback=3)
             if p_h:
                 bos_long_level = float(p_h[-1][1])
