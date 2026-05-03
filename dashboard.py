@@ -18,7 +18,7 @@ from typing import Any, Optional
 
 import numpy as np
 import requests
-from flask import Flask, jsonify, render_template
+from flask import Flask, jsonify
 
 from config.deployer import load_all
 from config.settings import load_config
@@ -704,7 +704,7 @@ def refresher():
 
 @app.route("/")
 def index():
-    return render_template("dashboard.html")
+    return app.send_static_file("v2/DASHBAORD.html")
 
 
 @app.route("/v2")
